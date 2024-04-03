@@ -10,7 +10,10 @@ use tracing::{event, Level};
 
 use chrono::{DateTime, Utc};
 
-use sqlx::{migrate::MigrateDatabase, Acquire, FromRow, Pool, Row, Sqlite, SqlitePool};
+use sqlx::{
+    migrate::MigrateDatabase, pool::PoolConnection, Acquire, FromRow, Pool, Row, Sqlite,
+    SqliteConnection, SqlitePool,
+};
 const DB_URL: &str = "sqlite://sqlite.db";
 
 #[tokio::main]
@@ -88,7 +91,7 @@ async fn root() -> &'static str {
 
 async fn add_data(
     // this argument tells axum to parse the request body
-    // as JSON into a `CreateUser` type
+    // as JSON into a `AddData` type
     State(pool): State<Pool<Sqlite>>,
     Json(payload): Json<AddData>,
 ) -> (StatusCode, Json<Data>) {
@@ -100,21 +103,25 @@ async fn add_data(
     };
 
     let mut db = pool
-        .clone()
         .acquire()
         .await
-        .expect("cannot open new connection");
+        .expect("cannot open new poolconnection");
 
-    let result = sqlx::query(
+    let _result = sqlx::query(
         "INSERT INTO datapoints (CreationDate, ChannelId, DataPointValue) VALUES (?, ?, ?)",
     )
     .bind(data.timestamp)
     .bind(data.channel)
     .bind(data.value)
-    .execute(db.acquire().await.unwrap())
+    .execute(
+        db.acquire()
+            .await
+            .expect("cannot open new single connection"),
+    )
     .await
-    .unwrap();
-    println!("Query result: {:?}", result);
+    .expect("error when executing query");
+
+    //println!("Query result: {:?}", result);
 
     // this will be converted into a JSON response
     // with a status code of `201 Created`
