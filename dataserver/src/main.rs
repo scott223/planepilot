@@ -74,7 +74,7 @@ async fn main() {
     let app = Router::new()
         .route("/", get(root))
         .route("/api/v1/data", post(add_data))
-        //.route("/api/v1/data/:channel_id", get(get_data))
+        .route("/api/v1/data/:channel_id", get(get_data))
         .route("/api/v1/channel", post(add_channel).get(get_channels))
         .layer(
             TraceLayer::new_for_http()
@@ -120,6 +120,28 @@ async fn update_channels(app_state: &AppState) -> Result<Vec<Channel>, sqlx::Err
         Err(e) => {
             event!(Level::ERROR, "Error updating channels: {})", e);
             return Err(e);
+        }
+    };
+}
+
+async fn get_data(
+    State(app_state): State<AppState>,
+) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    // sqlite does not have Utc, only NaiveDateTime, so need to do a typecast here
+    match sqlx::query_as!(Data, r"select CreationDate as 'timestamp: DateTime<Utc>', DataPointValue as value, ChannelId as channel from datapoints")
+        .fetch_all(&app_state.db)
+        .await
+    {
+        Ok(d) => {
+            return Ok(Json(d));
+        }
+        Err(e) => {
+            event!(Level::ERROR, "Error when pulling data: {})", e);
+            let error_response = serde_json::json!({
+                "status": "error",
+                "message": format!("Database error: {:}", e),
+            });
+            return Err((StatusCode::INTERNAL_SERVER_ERROR, Json(error_response)));
         }
     };
 }
