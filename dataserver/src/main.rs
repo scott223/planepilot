@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use tower_http::trace::TraceLayer;
 use tracing::{event, Level};
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 
 use sqlx::{migrate::MigrateDatabase, Pool, Sqlite, SqlitePool};
 const DB_URL: &str = "sqlite://sqlite.db";
@@ -19,10 +19,10 @@ struct AppState {
     db: Pool<Sqlite>,
 }
 
-#[derive(Debug, Clone, sqlx::FromRow)]
+#[derive(Debug, Clone, Serialize, sqlx::FromRow)]
 struct Channel {
-    ChannelId: i64,
-    ChannelName: String,
+    channel_id: i64,
+    channel_name: String,
 }
 
 #[tokio::main]
@@ -68,14 +68,14 @@ async fn main() {
         db,
     };
 
-    app_state.channels = update_channels(&app_state).await;
+    app_state.channels = update_channels(&app_state).await.unwrap();
 
     // build our application with a route
     let app = Router::new()
-        // `GET /` goes to `root`
         .route("/", get(root))
         .route("/api/v1/data", post(add_data))
-        .route("/api/v1/channel", post(add_channel))
+        //.route("/api/v1/data/:channel_id", get(get_data))
+        .route("/api/v1/channel", post(add_channel).get(get_channels))
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(tower_http::trace::DefaultMakeSpan::new().include_headers(true))
@@ -105,38 +105,49 @@ async fn root() -> &'static str {
     "Hello, World!"
 }
 
-async fn update_channels(app_state: &AppState) -> Vec<Channel> {
-    let channels: Vec<Channel> = sqlx::query_as!(Channel, r"select * from channels")
-        .fetch_all(&app_state.db)
-        .await
-        .expect("error fetching channels");
-
-    event!(Level::INFO, "Channels updated (n = {})", channels.len());
-
-    channels
+async fn update_channels(app_state: &AppState) -> Result<Vec<Channel>, sqlx::Error> {
+    match sqlx::query_as!(
+        Channel,
+        r"select ChannelId as channel_id, ChannelName as channel_name from channels"
+    )
+    .fetch_all(&app_state.db)
+    .await
+    {
+        Ok(c) => {
+            event!(Level::INFO, "Channels updated (n = {})", c.len());
+            return Ok(c);
+        }
+        Err(e) => {
+            event!(Level::ERROR, "Error updating channels: {})", e);
+            return Err(e);
+        }
+    };
 }
 
 async fn add_data(
-    // this argument tells axum to parse the request body
-    // as JSON into a `AddData` type
     State(app_state): State<AppState>,
     Json(payload): Json<AddData>,
-) -> StatusCode {
+) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // insert your application logic here
     let data = Data {
         value: payload.value,
-        timestamp: payload.timestamp,
+        timestamp: payload.timestamp.unwrap_or(chrono::Utc::now()),
         channel: payload.channel,
     };
 
     if app_state
         .channels
         .iter()
-        .filter(|c| c.ChannelId == data.channel)
+        .filter(|c| c.channel_id == data.channel)
         .count()
         != 1
     {
-        return StatusCode::BAD_REQUEST;
+        let error_response = serde_json::json!({
+            "status": "error",
+            "message": format!("Channel with this id does not exist"),
+        });
+
+        return Err((StatusCode::BAD_REQUEST, Json(error_response)));
     }
 
     let _result = sqlx::query(
@@ -147,13 +158,16 @@ async fn add_data(
     .bind(data.value)
     .execute(&app_state.db)
     .await
-    .expect("error when executing query");
+    .map_err(|e| {
+        let error_response = serde_json::json!({
+            "status": "error",
+            "message": format!("Database error: { }", e),
+        });
+        event!(Level::ERROR, "Database error { }", e);
+        (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
+    })?;
 
-    //println!("Query result: {:?}", result);
-
-    // this will be converted into a JSON response
-    // with a status code of `201 Created`
-    (StatusCode::CREATED)
+    Ok((StatusCode::CREATED, Json(data)))
 }
 
 async fn add_channel(
@@ -161,28 +175,46 @@ async fn add_channel(
     // as JSON into a `AddData` type
     State(mut app_state): State<AppState>,
     Json(payload): Json<AddChannel>,
-) -> StatusCode {
-    if !payload.name.is_empty() {
+) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    if !payload.channel_name.is_empty() {
         let _result = sqlx::query("INSERT INTO channels (ChannelName) VALUES (?)")
-            .bind(payload.name)
+            .bind(payload.channel_name)
             .execute(&app_state.db)
             .await
-            .expect("error when executing query");
-        app_state.channels = update_channels(&app_state).await;
-        StatusCode::CREATED
+            .map_err(|e| {
+                let error_response = serde_json::json!({
+                    "status": "error",
+                    "message": format!("Database error: { }", e),
+                });
+                event!(Level::ERROR, "Database error { }", e);
+                (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
+            })?;
+
+        app_state.channels = update_channels(&app_state).await.unwrap();
+        Ok((StatusCode::CREATED, Json(app_state.channels)))
     } else {
-        StatusCode::NO_CONTENT
+        let error_response = serde_json::json!({
+            "status": "error",
+            "message": format!("Channel name cannot be empty"),
+        });
+        Err((StatusCode::INTERNAL_SERVER_ERROR, Json(error_response)))
     }
+}
+
+async fn get_channels(
+    State(app_state): State<AppState>,
+) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    return Ok(Json(update_channels(&app_state).await.unwrap()));
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct AddData {
     pub value: f64,
-    pub timestamp: chrono::DateTime<Utc>,
+    pub timestamp: Option<chrono::DateTime<Utc>>,
     pub channel: i64,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
 pub struct Data {
     pub value: f64,
     pub timestamp: chrono::DateTime<Utc>,
@@ -190,5 +222,5 @@ pub struct Data {
 }
 #[derive(Debug, Deserialize, Serialize)]
 pub struct AddChannel {
-    pub name: String,
+    pub channel_name: String,
 }
