@@ -1,4 +1,5 @@
 use axum::{
+    extract::Path,
     extract::State,
     http::StatusCode,
     routing::{get, post},
@@ -10,7 +11,7 @@ use tracing::{event, Level};
 
 use chrono::{DateTime, Utc};
 
-use sqlx::{migrate::MigrateDatabase, Pool, Sqlite, SqlitePool};
+use sqlx::{migrate::MigrateDatabase, sqlite::SqliteRow, FromRow, Pool, Row, Sqlite, SqlitePool};
 const DB_URL: &str = "sqlite://sqlite.db";
 
 #[derive(Debug, Clone)]
@@ -123,12 +124,13 @@ async fn update_channels(app_state: &AppState) -> Result<Vec<Channel>, sqlx::Err
         }
     };
 }
-
 async fn get_data(
     State(app_state): State<AppState>,
+    Path(channel_id): Path<i64>,
 ) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    // sqlite does not have Utc, only NaiveDateTime, so need to do a typecast here
-    match sqlx::query_as!(Data, r"select CreationDate as 'timestamp: DateTime<Utc>', DataPointValue as value, ChannelId as channel from datapoints")
+    match sqlx::query(r"select * from datapoints WHERE ChannelId = (?)")
+        .bind(channel_id)
+        .try_map(|d| Data::from_row(&d))
         .fetch_all(&app_state.db)
         .await
     {
@@ -213,6 +215,7 @@ async fn add_channel(
             })?;
 
         app_state.channels = update_channels(&app_state).await.unwrap();
+        println!("app data channels: {:?}", app_state.channels);
         Ok((StatusCode::CREATED, Json(app_state.channels)))
     } else {
         let error_response = serde_json::json!({
@@ -236,12 +239,27 @@ pub struct AddData {
     pub channel: i64,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Data {
     pub value: f64,
     pub timestamp: chrono::DateTime<Utc>,
     pub channel: i64,
 }
+
+impl<'r> FromRow<'r, SqliteRow> for Data {
+    fn from_row(row: &'r SqliteRow) -> Result<Self, sqlx::Error> {
+        let value = row.try_get("DataPointValue")?;
+        let timestamp = row.try_get("CreationDate")?;
+        let channel = row.try_get("ChannelId")?;
+
+        Ok(Data {
+            value,
+            timestamp,
+            channel,
+        })
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct AddChannel {
     pub channel_name: String,
