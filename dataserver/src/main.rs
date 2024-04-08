@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use axum::{
     extract::Path,
     extract::State,
@@ -6,17 +8,18 @@ use axum::{
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
 use tower_http::trace::TraceLayer;
 use tracing::{event, Level};
 
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 
 use sqlx::{migrate::MigrateDatabase, sqlite::SqliteRow, FromRow, Pool, Row, Sqlite, SqlitePool};
 const DB_URL: &str = "sqlite://sqlite.db";
 
 #[derive(Debug, Clone)]
 struct AppState {
-    channels: Vec<Channel>,
+    channels: Arc<Mutex<Vec<Channel>>>,
     db: Pool<Sqlite>,
 }
 
@@ -64,12 +67,10 @@ async fn main() {
         }
     }
 
-    let mut app_state = AppState {
-        channels: vec![],
+    let app_state = AppState {
+        channels: Arc::new(Mutex::new(update_channels(&db).await.unwrap().to_owned())),
         db,
     };
-
-    app_state.channels = update_channels(&app_state).await.unwrap();
 
     // build our application with a route
     let app = Router::new()
@@ -106,12 +107,12 @@ async fn root() -> &'static str {
     "Hello, World!"
 }
 
-async fn update_channels(app_state: &AppState) -> Result<Vec<Channel>, sqlx::Error> {
+async fn update_channels(db: &Pool<Sqlite>) -> Result<Vec<Channel>, sqlx::Error> {
     match sqlx::query_as!(
         Channel,
         r"select ChannelId as channel_id, ChannelName as channel_name from channels"
     )
-    .fetch_all(&app_state.db)
+    .fetch_all(db)
     .await
     {
         Ok(c) => {
@@ -152,7 +153,6 @@ async fn add_data(
     State(app_state): State<AppState>,
     Json(payload): Json<AddData>,
 ) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    // insert your application logic here
     let data = Data {
         value: payload.value,
         timestamp: payload.timestamp.unwrap_or(chrono::Utc::now()),
@@ -161,6 +161,8 @@ async fn add_data(
 
     if app_state
         .channels
+        .lock()
+        .await
         .iter()
         .filter(|c| c.channel_id == data.channel)
         .count()
@@ -195,9 +197,7 @@ async fn add_data(
 }
 
 async fn add_channel(
-    // this argument tells axum to parse the request body
-    // as JSON into a `AddData` type
-    State(mut app_state): State<AppState>,
+    State(app_state): State<AppState>,
     Json(payload): Json<AddChannel>,
 ) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     if !payload.channel_name.is_empty() {
@@ -214,9 +214,12 @@ async fn add_channel(
                 (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
             })?;
 
-        app_state.channels = update_channels(&app_state).await.unwrap();
-        println!("app data channels: {:?}", app_state.channels);
-        Ok((StatusCode::CREATED, Json(app_state.channels)))
+        //we need to get a lock on the mutex and update channels, so that we keep the right list of channels in memory
+        let mut channels = app_state.channels.lock().await;
+        *channels = update_channels(&app_state.db).await.unwrap();
+
+        //clone channels so we can read it
+        return Ok((StatusCode::CREATED, Json(channels.clone())));
     } else {
         let error_response = serde_json::json!({
             "status": "error",
@@ -229,7 +232,7 @@ async fn add_channel(
 async fn get_channels(
     State(app_state): State<AppState>,
 ) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    return Ok(Json(update_channels(&app_state).await.unwrap()));
+    return Ok(Json(update_channels(&app_state.db).await.unwrap()));
 }
 
 #[derive(Debug, Deserialize, Serialize)]
