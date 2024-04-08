@@ -7,37 +7,34 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'planepilot'",
+            "name": "Debug executable 'dataserver'",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=planepilot",
-                    "--package=planepilot"
+                    "--bin=dataserver",
+                    "--package=dataserver"
                 ],
                 "filter": {
-                    "name": "planepilot",
+                    "name": "dataserver",
                     "kind": "bin"
                 }
             },
             "args": [],
             "cwd": "${workspaceFolder}",
-            "env": {
-                "RUST_LOG": "debug"
-            }
         },
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'planepilot'",
+            "name": "Debug unit tests in executable 'dataserver'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=planepilot",
-                    "--package=planepilot"
+                    "--bin=dataserver",
+                    "--package=dataserver"
                 ],
                 "filter": {
-                    "name": "planepilot",
+                    "name": "dataserver",
                     "kind": "bin"
                 }
             },
