@@ -16,6 +16,7 @@ use crate::{models, utils::Config};
 
 use tokio::sync::broadcast;
 
+//note: probably we need to move the tx to the Channel, so each Channel gets its own broadcast::sender!!
 #[derive(Debug, Clone)]
 pub struct AppState {
     pub channels: Arc<Mutex<Vec<models::Channel>>>,
