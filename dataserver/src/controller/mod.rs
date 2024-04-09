@@ -1,9 +1,10 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 use tokio::sync::Mutex;
 
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
+    response::sse::Event as SseEvent,
     Json,
 };
 use chrono::Utc;
@@ -11,39 +12,52 @@ use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Pool, Sqlite};
 use tracing::{event, Level};
 
-use crate::models;
+use crate::{models, utils::Config};
+
+use tokio::sync::broadcast;
 
 #[derive(Debug, Clone)]
 pub struct AppState {
     pub channels: Arc<Mutex<Vec<models::Channel>>>,
     pub db: Pool<Sqlite>,
+    pub config: Config,
+    pub tx: broadcast::Sender<SseEvent>, //for the SSE broadcasts
 }
 
-pub async fn update_channels(db: &Pool<Sqlite>) -> Result<Vec<models::Channel>, sqlx::Error> {
-    match sqlx::query(r"select * from channels")
-        .try_map(|d| models::Channel::from_row(&d))
-        .fetch_all(db)
-        .await
-    {
-        Ok(c) => {
-            event!(Level::INFO, "Channels updated (n = {})", c.len());
-            return Ok(c);
-        }
-        Err(e) => {
-            event!(Level::ERROR, "Error updating channels: {})", e);
-            return Err(e);
-        }
-    };
+#[derive(Debug, Deserialize)]
+pub struct GetDataParams {
+    // frame duration and offset are Optional, revert to defaults in config if needed
+    frame_duration: Option<i32>,
+    frame_end_offset: Option<i32>,
 }
+
 pub async fn get_data(
     State(app_state): State<AppState>,
     Path(channel_id): Path<i64>,
+    Query(params): Query<GetDataParams>,
 ) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    match sqlx::query(r"select * from datapoints WHERE ChannelId = (?)")
-        .bind(channel_id)
-        .try_map(|d| models::Data::from_row(&d))
-        .fetch_all(&app_state.db)
-        .await
+    // define the time frame for which we are looking for data - use the defaults if no params are given
+    let frame_duration: i32 = params
+        .frame_duration
+        .unwrap_or(app_state.config.data_frame_duration);
+
+    let frame_end_offset: i32 = params
+        .frame_end_offset
+        .unwrap_or(app_state.config.data_frame_offset);
+
+    let frame_end = Utc::now() - Duration::from_secs((frame_end_offset * 60) as u64);
+    let frame_start = frame_end - Duration::from_secs((frame_duration * 60) as u64);
+
+    match sqlx::query(
+        r"select * from datapoints WHERE ChannelId = (?) AND CreationDate BETWEEN (?) AND (?) LIMIT 3600",
+    )
+    .bind(channel_id)
+    .bind(frame_start)
+    .bind(frame_end)
+    // map to Data struct
+    .try_map(|d| models::Data::from_row(&d))
+    .fetch_all(&app_state.db)
+    .await
     {
         Ok(d) => {
             return Ok(Json(d));
@@ -59,6 +73,13 @@ pub async fn get_data(
     };
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AddData {
+    pub value: f64,
+    pub timestamp: Option<chrono::DateTime<Utc>>,
+    pub channel: i64,
+}
+
 pub async fn add_data(
     State(app_state): State<AppState>,
     Json(payload): Json<AddData>,
@@ -69,6 +90,7 @@ pub async fn add_data(
         channel: payload.channel,
     };
 
+    //check if the channel_id exists in App_state.channels
     if app_state
         .channels
         .lock()
@@ -102,6 +124,13 @@ pub async fn add_data(
         event!(Level::ERROR, "Database error { }", e);
         (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
     });
+
+    //send a broadcast to the folks listening through SSE
+    //todo add error handling
+    app_state
+        .tx
+        .send(SseEvent::default().json_data(data.clone()).unwrap())
+        .unwrap();
 
     Ok((StatusCode::CREATED, Json(data)))
 }
@@ -138,6 +167,23 @@ pub async fn add_channel(
         Err((StatusCode::INTERNAL_SERVER_ERROR, Json(error_response)))
     }
 }
+/// Updates the channels based on what is in the Sqlite database
+pub async fn update_channels(db: &Pool<Sqlite>) -> Result<Vec<models::Channel>, sqlx::Error> {
+    match sqlx::query(r"select * from channels")
+        .try_map(|d| models::Channel::from_row(&d))
+        .fetch_all(db)
+        .await
+    {
+        Ok(c) => {
+            event!(Level::INFO, "Channels updated (n = {})", c.len());
+            return Ok(c);
+        }
+        Err(e) => {
+            event!(Level::ERROR, "Error updating channels: {})", e);
+            return Err(e);
+        }
+    };
+}
 
 pub async fn get_channels(
     State(app_state): State<AppState>,
@@ -153,13 +199,6 @@ pub async fn get_channels(
             return Err((StatusCode::INTERNAL_SERVER_ERROR, Json(error_response)));
         }
     }
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct AddData {
-    pub value: f64,
-    pub timestamp: Option<chrono::DateTime<Utc>>,
-    pub channel: i64,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

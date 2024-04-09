@@ -19,7 +19,6 @@ pub async fn create_and_migrate_db(config: &super::Config) -> SqlitePool {
         .await
         .expect("can't connect to database");
 
-    //let crate_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
     let migrations = std::path::Path::new(&config.migration_path);
     let migration_results = sqlx::migrate::Migrator::new(migrations)
         .await

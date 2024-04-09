@@ -24,3 +24,10 @@ impl<'r> FromRow<'r, SqliteRow> for Data {
         })
     }
 }
+
+//to pass as SSE payload
+impl<'a> AsRef<Data> for Data {
+    fn as_ref(&self) -> &Data {
+        self
+    }
+}
