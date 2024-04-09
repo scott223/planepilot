@@ -12,7 +12,10 @@ use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Pool, Sqlite};
 use tracing::{event, Level};
 
-use crate::{models, utils::Config};
+use crate::{
+    models::{self, Channel},
+    utils::Config,
+};
 
 use tokio::sync::broadcast;
 
@@ -126,13 +129,34 @@ pub async fn add_data(
         (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
     });
 
-    //send a broadcast to the folks listening through SSE
-    //todo add error handling
-    app_state
-        .tx
-        .send(SseEvent::default().json_data(data.clone()).unwrap())
-        .unwrap();
+    // lets get the associated channel in the mutex
+    let channels = app_state.channels.lock().await;
+    let chnl: Vec<&Channel> = channels
+        .iter()
+        .filter(|c| c.channel_id == data.channel)
+        .collect();
 
+    // this should be one item, if not - the state is messed up and we panic
+    if chnl.len() != 1 {
+        panic!("should be 1. exiting")
+    };
+
+    // send a broadcast to the folks listening through SSE
+    // send only on the SSE channel related to the signal channel
+    match chnl[0].tx.send(
+        SseEvent::default()
+            .json_data(data.clone())
+            .expect("error translating data JSON into SSE event"),
+    ) {
+        Ok(t) => {
+            event!(Level::INFO, "SSE sent to { } receivers", t);
+        }
+        Err(e) => {
+            event!(Level::ERROR, "SSE error { }", e);
+        }
+    }
+
+    // all good returning 201
     Ok((StatusCode::CREATED, Json(data)))
 }
 

@@ -39,14 +39,17 @@ async fn main() {
     // build our application with the routes
     let app: Router = Router::new()
         .route("/", get(root))
-        .route("/api/v1/data", post(controller::add_data))
-        .route("/api/v1/data/:channel_id/", get(controller::get_data))
         .route(
             "/api/v1/channel",
             post(controller::add_channel).get(controller::get_channels),
         )
+        .route("/api/v1/data", post(controller::add_data))
         .route(
-            "/api/v1/data/stream",
+            "/api/v1/channel/:channel_id/data",
+            get(controller::get_data),
+        )
+        .route(
+            "/api/v1/channel/:channel_id/stream",
             get(dataserver::sse::sse::sse_handler),
         )
         .layer(utils::trace::return_trace_layer())
@@ -66,6 +69,7 @@ async fn main() {
     );
 
     axum::serve(listener, app)
+        .with_graceful_shutdown(utils::log::shutdown_signal())
         .await
         .expect("error serving app. exiting.");
 }
