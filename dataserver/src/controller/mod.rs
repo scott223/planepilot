@@ -152,7 +152,7 @@ pub async fn add_data(
             event!(Level::INFO, "SSE sent to { } receivers", t);
         }
         Err(e) => {
-            event!(Level::ERROR, "SSE error { }", e);
+            event!(Level::INFO, "SSE error: { }", e);
         }
     }
 
