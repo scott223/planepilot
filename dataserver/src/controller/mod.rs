@@ -149,10 +149,25 @@ pub async fn add_data(
             .expect("error translating data JSON into SSE event"),
     ) {
         Ok(t) => {
-            event!(Level::INFO, "SSE sent to { } receivers", t);
+            event!(Level::INFO, "SSE (chnl) sent to { } receivers", t);
         }
         Err(e) => {
-            event!(Level::INFO, "SSE error: { }", e);
+            event!(Level::INFO, "SSE (chnl) error: { }", e);
+        }
+    }
+
+    // send a broadcast to the folks listening through SSE
+    // send only on the SSE channel related to the signal channel
+    match app_state.tx.send(
+        SseEvent::default()
+            .json_data(data.clone())
+            .expect("error translating data JSON into SSE event"),
+    ) {
+        Ok(t) => {
+            event!(Level::INFO, "SSE (all) sent to { } receivers", t);
+        }
+        Err(e) => {
+            event!(Level::INFO, "SSE (all) error: { }", e);
         }
     }
 
