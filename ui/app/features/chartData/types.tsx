@@ -5,9 +5,11 @@ export type chartDataType = {
 }
 
 export type channelDataType = {
-    id: number,
-    title: string,
+    channel_id: number,
+    channel_name: string,
 }
+
+
 
 export interface chartStateType {
     chartData: chartDataType[],
@@ -20,4 +22,7 @@ export enum chartDataActionTypes {
     FETCH_DATA_REQUEST = '@chartdata/FETCH_DATA_REQUEST',
     FETCH_DATA_SUCCESS = '@chartdata/FETCH_DATA_SUCCESS',
     FETCH_DATA_ERROR = '@chartdata/FETCH_DATA_ERROR',
+    FETCH_CHANNEL_REQUEST = '@chartdata/FETCH_CHANNEL_REQUEST',
+    FETCH_CHANNEL_SUCCESS = '@chartdata/FETCH_CHANNEL_SUCCESS',
+    FETCH_CHANNEL_ERROR = '@chartdata/FETCH_CHANNEL_ERROR',
 }

@@ -7,7 +7,6 @@ export type StateType = {
 };
 
 const rootReducers = {
-    counter: counterReducer,
     chartData: chartDataReducer,
 };
 

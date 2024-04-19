@@ -46,7 +46,6 @@ export const ChannelViewer: React.FC<DataProps> = props => {
 */
 
 export default function Home() {
-  const [data, setData] = useState<dataType[]>([]);
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-between">
