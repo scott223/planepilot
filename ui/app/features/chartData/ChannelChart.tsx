@@ -9,18 +9,18 @@ import Select from 'react-select'
 import { useAppSelector, useAppDispatch } from '../../hooks'
 
 interface DataProps {
-    channel: number,
-}
 
-interface optionType {
-    value: number,
-    label: string,
 }
 
 export const ChannelChart: React.FC<DataProps> = props => {
-    const { channel } = props;
+
+    interface optionType {
+        value: number,
+        label: string,
+    }
 
     const chartDataState = useAppSelector((state) => state.chartData);
+    const chartData: chartDataType[] = chartDataState.chartData;
     const dispatch = useDispatch();
 
     const [selectedChannels, setSelectedChannels] = React.useState<optionType[]>();
@@ -28,6 +28,8 @@ export const ChannelChart: React.FC<DataProps> = props => {
     const channelOptions: optionType[] = chartDataState.channels?.map((row: channelDataType) => {
         return { value: row.channel_id, label: row.channel_name }
     });
+
+
 
     const onInputChange = (
         value: optionType[], action: string
@@ -39,7 +41,6 @@ export const ChannelChart: React.FC<DataProps> = props => {
     return (
         <div>
             <div>
-
                 <Select
                     isMulti
                     name="channelsSelected"
@@ -50,7 +51,7 @@ export const ChannelChart: React.FC<DataProps> = props => {
 
                 <button
                     aria-label="Add chart data"
-                    onClick={() => dispatch(fetchDataRequest(channel))}
+                    onClick={() => dispatch(fetchDataRequest())}
                 >
                     Add chart data
                 </button>
@@ -61,6 +62,33 @@ export const ChannelChart: React.FC<DataProps> = props => {
                 >
                     Add channel data
                 </button>
+
+                <LineChart
+                    width={500}
+                    height={300}
+                    margin={{
+                        top: 5,
+                        right: 30,
+                        left: 20,
+                        bottom: 5,
+                    }}
+                >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                        domain={['auto', 'auto']}
+                        name="Time"
+                        tickFormatter={time => moment(time).format('MM/DD HH:mm')}
+                        dataKey="timestamp"
+                    />
+                    <YAxis />
+                    < Tooltip labelFormatter={time => moment(time).format('DD/MM HH:mm:SS')} />
+                    <Legend />
+                    {selectedChannels?.map(chnl => (
+                        <Line name={chnl.label} type="monotone" data={chartData.filter(data => data.channel == chnl.value)} dataKey="value" />
+                    ))}
+
+                </LineChart>
+
 
             </div>
 

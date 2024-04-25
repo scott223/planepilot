@@ -52,7 +52,10 @@ async fn main() {
             "/api/v1/channel",
             post(controller::add_channel).get(controller::get_channels),
         )
-        .route("/api/v1/data", post(controller::add_data))
+        .route(
+            "/api/v1/data",
+            get(controller::get_all_data).post(controller::add_data),
+        )
         .route(
             "/api/v1/channel/:channel_id/data",
             get(controller::get_data),

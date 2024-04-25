@@ -51,7 +51,10 @@ export default function Home() {
     <main className="flex min-h-screen flex-col items-center justify-between">
       <div className="border-solid border-2 border-indigo-600 w-full h-screen">
         <Provider store={store}>
-          <ChannelChart channel={1} />
+          <ChannelChart />
+          <ChannelChart />
+          <ChannelChart />
+          <ChannelChart />
         </Provider>
       </div>
     </main>

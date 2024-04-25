@@ -35,6 +35,44 @@ pub struct GetDataParams {
     frame_end_offset: Option<i32>,
 }
 
+pub async fn get_all_data(
+    State(app_state): State<AppState>,
+    Query(params): Query<GetDataParams>,
+) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    // define the time frame for which we are looking for data - use the defaults if no params are given
+    let frame_duration: i32 = params
+        .frame_duration
+        .unwrap_or(app_state.config.data_frame_duration);
+
+    let frame_end_offset: i32 = params
+        .frame_end_offset
+        .unwrap_or(app_state.config.data_frame_offset);
+
+    let frame_end = Utc::now() - Duration::from_secs((frame_end_offset * 60) as u64);
+    let frame_start = frame_end - Duration::from_secs((frame_duration * 60) as u64);
+
+    match sqlx::query(r"select * from datapoints WHERE CreationDate BETWEEN (?) AND (?) ORDER BY ChannelId, CreationDate LIMIT 3600")
+        .bind(frame_start)
+        .bind(frame_end)
+        // map to Data struct
+        .try_map(|d| models::Data::from_row(&d))
+        .fetch_all(&app_state.db)
+        .await
+    {
+        Ok(d) => {
+            return Ok(Json(d));
+        }
+        Err(e) => {
+            event!(Level::ERROR, "Error when pulling data: {})", e);
+            let error_response = serde_json::json!({
+                "status": "error",
+                "message": format!("Database error: {:}", e),
+            });
+            return Err((StatusCode::INTERNAL_SERVER_ERROR, Json(error_response)));
+        }
+    };
+}
+
 pub async fn get_data(
     State(app_state): State<AppState>,
     Path(channel_id): Path<i64>,
@@ -53,7 +91,7 @@ pub async fn get_data(
     let frame_start = frame_end - Duration::from_secs((frame_duration * 60) as u64);
 
     match sqlx::query(
-        r"select * from datapoints WHERE ChannelId = (?) AND CreationDate BETWEEN (?) AND (?) LIMIT 3600",
+        r"select * from datapoints WHERE ChannelId = (?) AND CreationDate BETWEEN (?) AND (?)  ORDER BY ChannelId, CreationDate LIMIT 3600",
     )
     .bind(channel_id)
     .bind(frame_start)

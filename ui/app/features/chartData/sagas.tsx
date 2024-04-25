@@ -8,7 +8,7 @@ import { fetchDataSuccess, fetchDataError, fetchChannelSuccess, fetchChannelErro
 function* getDataSaga({ payload: channel }: PayloadAction<number>) {
     try {
         // You can also export the axios call as a function.
-        const response: AxiosResponse<chartDataType[]> = yield axios.get(`http://localhost:3000/api/v1/channel/${channel}/data`);
+        const response: AxiosResponse<chartDataType[]> = yield axios.get(`http://localhost:3000/api/v1/data`);
         yield put(fetchDataSuccess(response.data));
     } catch (error) {
         yield put(fetchDataError(error as string));
