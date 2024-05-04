@@ -1,16 +1,13 @@
-"use client"; // This is a client component 👈🏽
-import React, { useRef, useState, useEffect, PureComponent, ChangeEventHandler, ChangeEvent } from 'react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import moment from 'moment';
-
-import store from './store'
+"use client"; // This is a client component
+import React, { useRef, useState, useEffect, ChangeEvent } from 'react'
 import { Provider, useDispatch } from 'react-redux'
+import store from './store'
 
 import { ChannelChart } from './features/chartData/ChannelChart'
 import { fetchChannelRequest, fetchDataRequest } from './features/chartData/actions';
 
 interface DataProps {
-
+  //no props
 }
 
 const PlaneDashboard: React.FC<DataProps> = props => {

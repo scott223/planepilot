@@ -1,4 +1,3 @@
-import counterReducer from './features/counter/counterSlice'
 import chartDataReducer from './features/chartData/reducers'
 import { chartStateType } from './features/chartData/types';
 

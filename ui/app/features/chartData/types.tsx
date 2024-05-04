@@ -9,8 +9,6 @@ export type channelDataType = {
     channel_name: string,
 }
 
-
-
 export interface chartStateType {
     chartData: chartDataType[],
     channels: channelDataType[],

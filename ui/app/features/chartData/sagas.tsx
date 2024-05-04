@@ -7,7 +7,7 @@ import { fetchDataSuccess, fetchDataError, fetchChannelSuccess, fetchChannelErro
 // Generator function
 function* getDataSaga({ payload: channel }: PayloadAction<number>) {
     try {
-        // You can also export the axios call as a function.
+        // get the data
         const response: AxiosResponse<chartDataType[]> = yield axios.get(`http://localhost:3000/api/v1/data`);
         yield put(fetchDataSuccess(response.data));
     } catch (error) {
@@ -18,7 +18,7 @@ function* getDataSaga({ payload: channel }: PayloadAction<number>) {
 // Generator function
 function* getChannelsSaga() {
     try {
-        // You can also export the axios call as a function.
+        // get the channels
         const response: AxiosResponse<channelDataType[]> = yield axios.get(`http://localhost:3000/api/v1/channel`);
         yield put(fetchChannelSuccess(response.data));
     } catch (error) {
@@ -28,6 +28,7 @@ function* getChannelsSaga() {
 
 // Generator function
 export function* watchGetData() {
+    //takelatest ignores all the calls, except the latest
     yield takeLatest(chartDataActionTypes.FETCH_DATA_REQUEST, getDataSaga);
 }
 

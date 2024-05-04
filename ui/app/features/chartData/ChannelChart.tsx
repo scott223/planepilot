@@ -1,12 +1,11 @@
 import React from 'react'
 import { useDispatch } from 'react-redux'
-import { fetchDataRequest, fetchChannelRequest } from './actions'
 import { channelDataType, chartDataType } from './types'
-import { LineChart, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer } from 'recharts';
 import moment from 'moment';
 import Select, { ActionMeta, MultiValue } from 'react-select'
 
-import { useAppSelector, useAppDispatch } from '../../hooks'
+import { useAppSelector } from '../../hooks'
 
 interface DataProps {
     timeframeMinutes: number,
