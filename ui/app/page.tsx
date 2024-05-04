@@ -29,7 +29,7 @@ export const PlaneDashboard: React.FC<DataProps> = props => {
 
   const [timeframeMinutes, setTimeframeMinutes] = useState(10); //default 10 min
 
-  const handleChange = (e) => {
+  const handleChange = (e: { target: { value: React.SetStateAction<number>; }; }) => {
     setTimeframeMinutes(e.target.value);
   };
 

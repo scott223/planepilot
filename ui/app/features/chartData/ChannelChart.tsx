@@ -78,7 +78,6 @@ export const ChannelChart: React.FC<DataProps> = props => {
                                 />))}
 
                             <YAxis />
-                            <Tooltip labelFormatter={time => moment(time).format('DD/MM HH:mm:SS')} />
                             <Legend />
                             {selectedChannels?.map((chnl, index) => (
                                 <Scatter fill={chartColors[chnl.value % 5]} xAxisId={chnl.label} name={chnl.label} type="monotone" data={chartData.filter(data => data.channel == chnl.value)} dataKey="value" />
