@@ -4,7 +4,7 @@ import { fetchDataRequest, fetchChannelRequest } from './actions'
 import { channelDataType, chartDataType } from './types'
 import { LineChart, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import moment from 'moment';
-import Select from 'react-select'
+import Select, { ActionMeta, MultiValue } from 'react-select'
 
 import { useAppSelector, useAppDispatch } from '../../hooks'
 
@@ -30,10 +30,10 @@ export const ChannelChart: React.FC<DataProps> = props => {
     });
 
     const onInputChange = (
-        value: optionType[], action: string
+        value: MultiValue<optionType>, action: ActionMeta<optionType>
     ) => {
         //console.log(value);
-        setSelectedChannels(value);
+        setSelectedChannels(value as optionType[]);
     };
 
     const chartColors = ["#33658A", "#86BBD8", "#2F4858", "#F6AE2D", "#F26419"]
@@ -75,12 +75,13 @@ export const ChannelChart: React.FC<DataProps> = props => {
                                     allowDataOverflow={true}
                                     type="number"
                                     hide={index == 0 ? false : true}
+                                    key={index}
                                 />))}
 
                             <YAxis />
                             <Legend />
                             {selectedChannels?.map((chnl, index) => (
-                                <Scatter fill={chartColors[chnl.value % 5]} xAxisId={chnl.label} name={chnl.label} type="monotone" data={chartData.filter(data => data.channel == chnl.value)} dataKey="value" />
+                                <Scatter key={index} fill={chartColors[chnl.value % 5]} xAxisId={chnl.label} name={chnl.label} type="monotone" data={chartData.filter(data => data.channel == chnl.value)} dataKey="value" />
                             ))}
 
                         </ScatterChart>

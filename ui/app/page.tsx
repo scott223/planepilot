@@ -1,5 +1,5 @@
 "use client"; // This is a client component 👈🏽
-import React, { useRef, useState, useEffect, PureComponent } from 'react'
+import React, { useRef, useState, useEffect, PureComponent, ChangeEventHandler, ChangeEvent } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import moment from 'moment';
 
@@ -13,7 +13,7 @@ interface DataProps {
 
 }
 
-export const PlaneDashboard: React.FC<DataProps> = props => {
+const PlaneDashboard: React.FC<DataProps> = props => {
 
   const dispatch = useDispatch();
 
@@ -29,8 +29,8 @@ export const PlaneDashboard: React.FC<DataProps> = props => {
 
   const [timeframeMinutes, setTimeframeMinutes] = useState(10); //default 10 min
 
-  const handleChange = (e: { target: { value: React.SetStateAction<number>; }; }) => {
-    setTimeframeMinutes(e.target.value);
+  const handleChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    setTimeframeMinutes(e.target.value as unknown as number); //typecast to number, 
   };
 
   return (
