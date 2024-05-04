@@ -53,7 +53,7 @@ export const ChannelChart: React.FC<DataProps> = props => {
                         onChange={onInputChange} />
                 </div>
                 <div className="mt-4">
-                    <ResponsiveContainer width="95%" height={400}>
+                    <ResponsiveContainer width="95%" height={200}>
                         <ScatterChart
                             margin={{
                                 top: 5,

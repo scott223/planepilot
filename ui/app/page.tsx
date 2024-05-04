@@ -25,9 +25,14 @@ const PlaneDashboard: React.FC<DataProps> = props => {
   }, []);
 
   const [timeframeMinutes, setTimeframeMinutes] = useState(10); //default 10 min
+  const [viewports, setViewports] = useState(4); //default 4 viewports
 
-  const handleChange = (e: ChangeEvent<HTMLSelectElement>) => {
+  const handletfChange = (e: ChangeEvent<HTMLSelectElement>) => {
     setTimeframeMinutes(e.target.value as unknown as number); //typecast to number, 
+  };
+
+  const handlevpChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    setViewports(e.target.value as unknown as number); //typecast to number, 
   };
 
   return (
@@ -39,22 +44,32 @@ const PlaneDashboard: React.FC<DataProps> = props => {
           </button>
         </div>
         <div className="content-center">
-          Timeframe (minutes):
+          Timeframe (minutes): &nbsp;
           <select
             value={timeframeMinutes}
-            onChange={handleChange}
+            onChange={handletfChange}
           >
             <option value="10">10</option>
             <option value="5">5</option>
             <option value="1">1</option>
           </select>
         </div>
+        <div className="content-center">
+          Viewports (number): &nbsp;
+          <select
+            value={viewports}
+            onChange={handlevpChange}
+          >
+            <option value="8">8</option>
+            <option value="4">4</option>
+            <option value="2">2</option>
+          </select>
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-4 mt-6">
-        <div><ChannelChart timeframeMinutes={timeframeMinutes} /></div>
-        <div><ChannelChart timeframeMinutes={timeframeMinutes} /></div>
-        <div><ChannelChart timeframeMinutes={timeframeMinutes} /></div>
-        <div><ChannelChart timeframeMinutes={timeframeMinutes} /></div>
+        {Array.from({ length: viewports }, (e, i) => (
+          <div key={i}><ChannelChart timeframeMinutes={timeframeMinutes} /></div>
+        ))}
       </div>
     </div>
   );
