@@ -16,6 +16,7 @@ export interface chartStateType {
     channels: channelDataType[],
     errors: string,
     isloading: boolean,
+    lastSuccesfullLoad?: Date,
 }
 
 export enum chartDataActionTypes {

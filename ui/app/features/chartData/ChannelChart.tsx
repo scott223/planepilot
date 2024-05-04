@@ -1,15 +1,15 @@
-import React, { useState } from 'react'
-import { useSelector, useDispatch } from 'react-redux'
+import React from 'react'
+import { useDispatch } from 'react-redux'
 import { fetchDataRequest, fetchChannelRequest } from './actions'
-import { channelDataType, chartDataType, chartStateType } from './types'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { channelDataType, chartDataType } from './types'
+import { LineChart, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import moment from 'moment';
 import Select from 'react-select'
 
 import { useAppSelector, useAppDispatch } from '../../hooks'
 
 interface DataProps {
-
+    timeframeMinutes: number,
 }
 
 export const ChannelChart: React.FC<DataProps> = props => {
@@ -29,70 +29,65 @@ export const ChannelChart: React.FC<DataProps> = props => {
         return { value: row.channel_id, label: row.channel_name }
     });
 
-
-
     const onInputChange = (
         value: optionType[], action: string
     ) => {
-        console.log(value);
+        //console.log(value);
         setSelectedChannels(value);
     };
+
+    const chartColors = ["#33658A", "#86BBD8", "#2F4858", "#F6AE2D", "#F26419"]
+
+    let max: number = (Date.now());
+    let min: number = max - props.timeframeMinutes * 60 * 1000;
 
     return (
         <div>
             <div>
-                <Select
-                    isMulti
-                    name="channelsSelected"
-                    className="basic-multi-select"
-                    classNamePrefix="select"
-                    options={channelOptions}
-                    onChange={onInputChange} />
+                <div>
+                    <Select
+                        isMulti
+                        name="channelsSelected"
+                        className="basic-multi-select"
+                        classNamePrefix="select"
+                        options={channelOptions}
+                        onChange={onInputChange} />
+                </div>
+                <div className="mt-4">
+                    <ResponsiveContainer width="95%" height={400}>
+                        <ScatterChart
+                            margin={{
+                                top: 5,
+                                right: 30,
+                                left: 20,
+                                bottom: 5,
+                            }}
+                        >
+                            <CartesianGrid strokeDasharray="3 3" />
 
-                <button
-                    aria-label="Add chart data"
-                    onClick={() => dispatch(fetchDataRequest())}
-                >
-                    Add chart data
-                </button>
+                            {selectedChannels?.map((chnl, index) => (
+                                <XAxis
+                                    name="Time"
+                                    tickFormatter={time => moment(time).format('HH:mm:ss')}
+                                    dataKey="timestamp"
+                                    xAxisId={chnl.label}
+                                    domain={[min, max]}
+                                    allowDataOverflow={true}
+                                    type="number"
+                                    hide={index == 0 ? false : true}
+                                />))}
 
-                <button
-                    aria-label="Add channel data"
-                    onClick={() => dispatch(fetchChannelRequest())}
-                >
-                    Add channel data
-                </button>
+                            <YAxis />
+                            <Tooltip labelFormatter={time => moment(time).format('DD/MM HH:mm:SS')} />
+                            <Legend />
+                            {selectedChannels?.map((chnl, index) => (
+                                <Scatter fill={chartColors[chnl.value % 5]} xAxisId={chnl.label} name={chnl.label} type="monotone" data={chartData.filter(data => data.channel == chnl.value)} dataKey="value" />
+                            ))}
 
-                <LineChart
-                    width={500}
-                    height={300}
-                    margin={{
-                        top: 5,
-                        right: 30,
-                        left: 20,
-                        bottom: 5,
-                    }}
-                >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis
-                        domain={['auto', 'auto']}
-                        name="Time"
-                        tickFormatter={time => moment(time).format('MM/DD HH:mm')}
-                        dataKey="timestamp"
-                    />
-                    <YAxis />
-                    < Tooltip labelFormatter={time => moment(time).format('DD/MM HH:mm:SS')} />
-                    <Legend />
-                    {selectedChannels?.map(chnl => (
-                        <Line name={chnl.label} type="monotone" data={chartData.filter(data => data.channel == chnl.value)} dataKey="value" />
-                    ))}
-
-                </LineChart>
-
-
+                        </ScatterChart>
+                    </ResponsiveContainer>
+                </div>
             </div>
-
         </div>
-
     )
 }
