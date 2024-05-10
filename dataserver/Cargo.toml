@@ -12,7 +12,7 @@ license = "MIT"
 dotenv = "0.15.0"
 chrono = { version = "0.4.37", features = ["serde"] }
 
-axum = { version = "0.7.5", features = ["http2"] }
+axum = { version = "0.7.5", features = ["http2", "macros"] }
 
 tokio = { version = "1.37.0", features = ["full"] }
 tokio-stream = { version = "0.1.15", default-features = false, features = [

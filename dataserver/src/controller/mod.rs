@@ -1,7 +1,9 @@
-use std::{sync::Arc, time::Duration};
+use serde_json::Value;
+use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::sync::Mutex;
 
 use axum::{
+    debug_handler,
     extract::{Path, Query, State},
     http::StatusCode,
     response::sse::Event as SseEvent,
@@ -113,6 +115,29 @@ pub async fn get_data(
             return Err((StatusCode::INTERNAL_SERVER_ERROR, Json(error_response)));
         }
     };
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AddState {
+    pub plane_state: HashMap<String, Value>,
+}
+
+#[debug_handler]
+pub async fn add_state(
+    State(app_state): State<AppState>,
+    Json(payload): Json<AddState>,
+) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    println!("i: {}", payload.plane_state.len());
+
+    for (key, value) in payload.plane_state {
+        event!(Level::DEBUG, "key: {}, value: {}", key, value);
+    }
+
+    let response = serde_json::json!({
+        "status": "succes",
+    });
+
+    Ok((StatusCode::OK, Json(response)))
 }
 
 #[derive(Debug, Deserialize, Serialize)]

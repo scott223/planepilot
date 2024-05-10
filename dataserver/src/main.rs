@@ -56,6 +56,7 @@ async fn main() {
             "/api/v1/data",
             get(controller::get_all_data).post(controller::add_data),
         )
+        .route("/api/v1/state", post(controller::add_state))
         .route(
             "/api/v1/channel/:channel_id/data",
             get(controller::get_data),

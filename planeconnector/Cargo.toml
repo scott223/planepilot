@@ -1,0 +1,30 @@
+[package]
+name = "planeconnector"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+dotenv = "0.15.0"
+tokio = { version = "1.37.0", features = ["full"] }
+reqwest = { version = "0.12.4", features = ["json"] }
+serde_json = "1.0.117"
+serde = "1.0.201"
+
+[profile.release]
+lto = true          # Enable link-time optimization
+codegen-units = 1   # Reduce number of codegen units to increase optimizations
+panic = 'abort'     # Abort on panic
+strip = true        # Strip symbols from binary*
+debug = false
+opt-level=3
+
+[profile.dev]
+strip = false
+opt-level=0
+debug=true
+
+[profile.dev.package."*"]
+opt-level=3
+debug=true
