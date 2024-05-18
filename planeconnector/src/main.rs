@@ -2,7 +2,6 @@ use core::panic;
 use std::{collections::HashMap, io::Error, time::Duration};
 
 use crossterm::event::{self, Event, KeyCode};
-use crossterm::queue;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde_json::{json, Value};
 use tokio::sync::mpsc;
@@ -21,19 +20,14 @@ const FLOAT_LEN: usize = 4;
 async fn main() {
     dotenv::dotenv().ok();
 
-    let mut app_state = AppState {
+    let _app_state = AppState {
         plane_state: HashMap::new(),
     };
 
-    app_state.plane_state.insert(
-        "sim/flightmodel/position/elevation".to_string(),
-        serde_json::Value::Number(serde_json::Number::from_f64(2540.43).unwrap()),
-    );
-    app_state.plane_state.insert(
-        "sim/flightmodel/position/indicated_airspeed".to_string(),
-        serde_json::Value::Number(serde_json::Number::from_f64(100.).unwrap()),
-    );
+    run_app().await;
+}
 
+async fn run_app() -> () {
     let socket = UdpSocket::bind("127.0.0.1:49100").await.unwrap();
     // Create a tokio::mpsc channel to send and recevie the the shutdown signal across workers
     let (tx, mut rx) = mpsc::channel(32);
@@ -135,11 +129,13 @@ async fn run_terminal(shutdown_channel: mpsc::Sender<bool>) -> Result<(), Error>
     Ok(())
 }
 
-fn translate_to_floats(data_bytes: [u8; 32]) -> Result<Vec<f32>, Error> {
+fn translate_to_floats(data_bytes: [u8; 8 * FLOAT_LEN]) -> Result<Vec<f32>, Error> {
     let mut floats: Vec<f32> = Vec::with_capacity(8);
 
-    for f in data_bytes.chunks(4) {
-        floats.push(f32::from_le_bytes(f.try_into().unwrap()));
+    for f in data_bytes.chunks(FLOAT_LEN) {
+        floats.push(f32::from_le_bytes(
+            f.try_into().expect("Need 4 bytes for a f32 float"),
+        ));
     }
 
     Ok(floats)
@@ -156,12 +152,12 @@ async fn listen_to_xplane(socket: UdpSocket) -> Result<(), Error> {
 
         if &buf[0..4] == b"DATA" {
             for sentence in buf[5..].chunks(36) {
-                //start at 5 as there is 0 byte after DATA
-
                 match sentence[0] {
                     17_u8 => {
                         let values = match translate_to_floats(
-                            sentence[4..36].try_into().expect("need 32 bytes"), //start at index 4 as there is a 0 after DATA
+                            sentence[FLOAT_LEN..FLOAT_LEN + 8 * FLOAT_LEN]
+                                .try_into()
+                                .expect("need 32 bytes"), //start at byte index 4 (first four are used for xplane index)
                         ) {
                             Ok(v) => v,
                             Err(e) => panic!("error translating values: {}", e),
@@ -173,7 +169,9 @@ async fn listen_to_xplane(socket: UdpSocket) -> Result<(), Error> {
                     }
                     20_u8 => {
                         let values = match translate_to_floats(
-                            sentence[4..36].try_into().expect("need 32 bytes"), //start at index 4 as there is a 0 after DATA
+                            sentence[FLOAT_LEN..FLOAT_LEN + 8 * FLOAT_LEN]
+                                .try_into()
+                                .expect("need 32 bytes"),
                         ) {
                             Ok(v) => v,
                             Err(e) => panic!("error translating values: {}", e),
@@ -195,7 +193,7 @@ async fn listen_to_xplane(socket: UdpSocket) -> Result<(), Error> {
     }
 }
 
-async fn post_state(plane_state: HashMap<String, Value>) -> Result<(), reqwest::Error> {
+async fn _post_state(plane_state: HashMap<String, Value>) -> Result<(), reqwest::Error> {
     let mut headers = HeaderMap::new();
 
     headers.insert(
