@@ -1,6 +1,8 @@
+use core::panic;
 use std::{collections::HashMap, io::Error, time::Duration};
 
 use crossterm::event::{self, Event, KeyCode};
+use crossterm::queue;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde_json::{json, Value};
 use tokio::sync::mpsc;
@@ -133,69 +135,56 @@ async fn run_terminal(shutdown_channel: mpsc::Sender<bool>) -> Result<(), Error>
     Ok(())
 }
 
-async fn listen_to_xplane(socket: UdpSocket) -> Result<(), Error> {
-    let mut buf: [u8; 512] = [0; 512];
-    loop {
-        let (_len, _src) = socket.recv_from(&mut buf).await.unwrap();
-        if buf[0..4] == [68, 65, 84, 65] {
-            // DATA
+fn translate_to_floats(data_bytes: [u8; 32]) -> Result<Vec<f32>, Error> {
+    let mut floats: Vec<f32> = Vec::with_capacity(8);
 
+    for f in data_bytes.chunks(4) {
+        floats.push(f32::from_le_bytes(f.try_into().unwrap()));
+    }
+
+    Ok(floats)
+}
+
+async fn listen_to_xplane(socket: UdpSocket) -> Result<(), Error> {
+    let mut buf: [u8; 1024] = [0_u8; 1024];
+
+    loop {
+        let (_len, _src) = socket
+            .recv_from(&mut buf)
+            .await
+            .expect("Error whilst receiving UDP packet");
+
+        if &buf[0..4] == b"DATA" {
             for sentence in buf[5..].chunks(36) {
                 //start at 5 as there is 0 byte after DATA
 
                 match sentence[0] {
                     17_u8 => {
-                        // PITCH, ROLL, HEADING
-                        let pitch: f32 = f32::from_le_bytes(
-                            sentence[4..4 + FLOAT_LEN]
-                                .try_into()
-                                .expect("Needed 4 bytes for a float"),
-                        );
-                        let roll: f32 = f32::from_le_bytes(
-                            sentence[8..8 + FLOAT_LEN]
-                                .try_into()
-                                .expect("Needed 4 bytes for a float"),
-                        );
-                        let heading: f32 = f32::from_le_bytes(
-                            sentence[12..12 + FLOAT_LEN]
-                                .try_into()
-                                .expect("Needed 4 bytes for a float"),
-                        );
-                        println!("pitch: {}, roll: {}, heading: {}", pitch, roll, heading)
+                        let values = match translate_to_floats(
+                            sentence[4..36].try_into().expect("need 32 bytes"), //start at index 4 as there is a 0 after DATA
+                        ) {
+                            Ok(v) => v,
+                            Err(e) => panic!("error translating values: {}", e),
+                        };
+                        println!(
+                            "pitch: {}, roll: {}, heading: {}",
+                            values[0], values[1], values[2]
+                        )
                     }
                     20_u8 => {
-                        // LATITUDE, LONGITUDE, ALTITUDE
-                        let latitude: f32 = f32::from_le_bytes(
-                            sentence[4..4 + FLOAT_LEN]
-                                .try_into()
-                                .expect("Needed 4 bytes for a float"),
-                        );
-                        let longitude: f32 = f32::from_le_bytes(
-                            sentence[8..8 + FLOAT_LEN]
-                                .try_into()
-                                .expect("Needed 4 bytes for a float"),
-                        );
-                        let altitude_msl: f32 = f32::from_le_bytes(
-                            sentence[12..12 + FLOAT_LEN]
-                                .try_into()
-                                .expect("Needed 4 bytes for a float"),
-                        );
-                        let altitude_agl: f32 = f32::from_le_bytes(
-                            sentence[16..16 + FLOAT_LEN]
-                                .try_into()
-                                .expect("Needed 4 bytes for a float"),
-                        );
-                        let on_runway: bool =
-                            if sentence[20..20 + FLOAT_LEN] == 1.0_f32.to_le_bytes() {
-                                true
-                            } else {
-                                false
-                            };
+                        let values = match translate_to_floats(
+                            sentence[4..36].try_into().expect("need 32 bytes"), //start at index 4 as there is a 0 after DATA
+                        ) {
+                            Ok(v) => v,
+                            Err(e) => panic!("error translating values: {}", e),
+                        };
 
-                        //println!(
-                        //    "latitude: {}, longitude: {}, altitude_msl: {}, altitude_agl: {}, on_runway: {} \n",
-                        //    longitude, latitude, altitude_msl, altitude_agl, on_runway
-                        //)
+                        let on_runway: bool = if values[4] == 1.0_f32 { true } else { false }; //convert a 1 to true
+
+                        println!(
+                            "latitude: {}, longitude: {}, altitude_msl: {}, altitude_agl: {}, on_runway: {} \n",
+                            values[0], values[1], values[2], values[3], on_runway
+                        )
                     }
                     _ => {
                         // do nothing
