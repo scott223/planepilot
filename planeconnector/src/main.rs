@@ -28,18 +28,17 @@ async fn main() {
 }
 
 async fn run_app() -> () {
-    let socket = UdpSocket::bind("127.0.0.1:49100").await.unwrap();
+    let socket = UdpSocket::bind("127.0.0.1:49100")
+        .await
+        .expect("Cannot bind socket");
+
     // Create a tokio::mpsc channel to send and recevie the the shutdown signal across workers
     let (tx, mut rx) = mpsc::channel(32);
-
-    // Step 1: Create a new CancellationToken
     let token = CancellationToken::new();
 
-    // Step 2: Clone the token for use in another task
+    // spwan a thread with all the main tasks, and a task to watch the cancellation token
     let cloned_token_udp = token.clone();
-
-    // Task 1 - Wait for token cancellation or a long time
-    let udp_handle = tokio::spawn(async move {
+    let main_handle = tokio::spawn(async move {
         tokio::select! {
             // Step 3: Using cloned token to listen to cancellation requests
             _ = cloned_token_udp.cancelled() => {
@@ -48,27 +47,14 @@ async fn run_app() -> () {
             _ = listen_to_xplane(socket) => {
                 // Long work has completed
             }
-        }
-    });
-
-    let cloned_token_data = token.clone();
-
-    // Task 2 - Wait for token cancellation or a long time
-    let data_logger_handle = tokio::spawn(async move {
-        tokio::select! {
-            // Step 3: Using cloned token to listen to cancellation requests
-            _ = cloned_token_data.cancelled() => {
-                // The token was cancelled, task can shut down
-            }
             _ = print_ja() => {
                 // Long work has completed
             }
         }
     });
 
+    // create a seperate thread for the terminal, as this is currently blocking
     let cloned_token_terminal = token.clone();
-
-    // Task 3 - Wait for token cancellation or a long time
     let terminal_handle = tokio::spawn(async move {
         tokio::select! {
             // Step 3: Using cloned token to listen to cancellation requests
@@ -90,16 +76,16 @@ async fn run_app() -> () {
     });
 
     // Wait for all the workers to finish
-    let _ = tokio::try_join!(udp_handle, data_logger_handle, terminal_handle)
-        .expect("unable to join tasks");
+    let _ = tokio::try_join!(main_handle, terminal_handle).expect("unable to join tasks");
 }
 
-async fn print_ja() -> () {
+async fn print_ja() -> Result<(), Error> {
     let mut interval = time::interval(Duration::from_secs(1));
     loop {
         println! {"ja"};
         interval.tick().await;
     }
+    Ok(())
 }
 
 async fn run_terminal(shutdown_channel: mpsc::Sender<bool>) -> Result<(), Error> {
