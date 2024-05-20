@@ -1,6 +1,6 @@
 use tokio::net::UdpSocket;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
 const FLOAT_LEN: usize = 4;
 
@@ -8,10 +8,7 @@ pub async fn listen_to_xplane(socket: UdpSocket) -> Result<()> {
     let mut buf: [u8; 1024] = [0_u8; 1024];
 
     loop {
-        let (len, _src) = socket
-            .recv_from(&mut buf)
-            .await
-            .expect("Error whilst receiving UDP packet");
+        let (len, _src) = socket.recv_from(&mut buf).await.map_err(|e| e)?;
 
         if &buf[0..4] == b"DATA" {
             for sentence in buf[5..len].chunks(36) {
@@ -19,10 +16,16 @@ pub async fn listen_to_xplane(socket: UdpSocket) -> Result<()> {
                 let values = match translate_to_floats(
                     &sentence[FLOAT_LEN..FLOAT_LEN + 8 * FLOAT_LEN]
                         .try_into()
-                        .expect("need 32 bytes"), //start at byte index 4 (first four are used for xplane index)
+                        .map_err(|e| {
+                            anyhow!(
+                                "need 32 bytes ({}), got len {:?}",
+                                e,
+                                sentence[FLOAT_LEN..FLOAT_LEN + 8 * FLOAT_LEN].len()
+                            )
+                        })?,
                 ) {
                     Ok(v) => v,
-                    Err(e) => panic!("Error translating values: {}", e),
+                    Err(e) => return Err(anyhow!("Error translating values: {}", e)),
                 };
 
                 match sentence[0] {
