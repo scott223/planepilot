@@ -1,6 +1,7 @@
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
 use crossterm::event::{self, Event, KeyCode};
+use serde_json::Value;
 use tokio::{net::UdpSocket, sync::mpsc, time};
 use tokio_util::sync::CancellationToken;
 
@@ -8,7 +9,16 @@ use anyhow::Result;
 
 pub mod xplaneudp;
 
+#[derive(Debug, Clone)]
+pub struct AppState {
+    pub plane_state: HashMap<String, Value>,
+}
+
 pub async fn run_app() -> Result<()> {
+    let _app_state = AppState {
+        plane_state: HashMap::new(),
+    };
+
     let socket = UdpSocket::bind("127.0.0.1:49100").await.map_err(|e| e)?;
 
     // Create a tokio::mpsc channel to send and recevie the the shutdown signal across workers
@@ -32,7 +42,7 @@ pub async fn run_app() -> Result<()> {
         }
     });
 
-    // create a seperate thread for the terminal, as this is currently blocking
+    // create a seperate task for the terminal, as this is currently blocking
     let cloned_token_terminal = token.clone();
     let terminal_handle = tokio::spawn(async move {
         tokio::select! {

@@ -5,18 +5,9 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 
-#[derive(Debug, Clone)]
-pub struct AppState {
-    pub plane_state: HashMap<String, Value>,
-}
-
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
-
-    let _app_state = AppState {
-        plane_state: HashMap::new(),
-    };
 
     match planeconnector::run_app().await {
         Ok(()) => {}
