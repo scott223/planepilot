@@ -7,7 +7,7 @@ title: PlanePilot
 ---
 classDiagram
     DataServer <|-- PlaneConnector : sends plane state
-    Dashboard <|-- DataServer : dashboard retrieves all data
+    DataDashboard <|-- DataServer : dashboard retrieves all data
     PlanePilot <|-- PlanePilotUI : sends user inputs
     PlanePilot --|> PlanePilotUI : retrieves plane state
     PlaneConnector <|-- PlanePilot : sends setpoints
@@ -19,7 +19,7 @@ classDiagram
         +Channels
         +Data
     }
-    class Dashboard {
+    class DataDashboard {
 
     }
     class PlaneConnector{
@@ -35,7 +35,12 @@ classDiagram
 
 ## Tech stack
 
-### UI
+### PlaneConnector
+* Rust
+  * Tokio async
+  * UDP sockets   
+
+### DataDashboard
 * React
   * Redux Saga
   * Rechart
