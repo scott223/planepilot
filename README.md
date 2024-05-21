@@ -6,36 +6,41 @@ xplane11 logger and (future) autopilot
 title: PlanePilot
 ---
 classDiagram
-    DataServer <|-- XPConnector : sends plane state
-    Dashboard <|-- DataServer : dashboard retrieves all data
-    PlanePilotServer <|-- PlanePilotUI : sends user inputs
-    PlanePilotServer --|> PlanePilotUI : sends plane state
-    XPConnector <|-- PlanePilotServer : sends setpoints
-    XPConnector --|> PlanePilotServer : retrieves plane state
-    DataServer <|-- PlanePilotServer : sends setpoints
-    X-Plane <|-- XPConnector : sends setpoints
-    X-Plane --|> XPConnector : retrieves plane state
+    DataServer <|-- PlaneConnector : sends plane state
+    DataDashboard <|-- DataServer : dashboard retrieves all data
+    PlanePilot <|-- PlanePilotUI : sends user inputs
+    PlanePilot --|> PlanePilotUI : retrieves plane state
+    PlaneConnector <|-- PlanePilot : sends setpoints
+    PlaneConnector --|> PlanePilot : retrieves plane state
+    DataServer <|-- PlanePilot : sends setpoints
+    X-Plane11 <|-- PlaneConnector : sends setpoints
+    X-Plane11 --|> PlaneConnector : retrieves plane state
     class DataServer{
         +Channels
         +Data
     }
-    class Dashboard {
+    class DataDashboard {
 
     }
-    class PlanePilotServer{
+    class PlaneConnector{
 
     }
     class PlanePilotUI {
 
     }
-    class X-Plane {
+    class X-Plane11 {
 
     }
 ```
 
 ## Tech stack
 
-### UI
+### PlaneConnector
+* Rust
+  * Tokio async
+  * UDP sockets   
+
+### DataDashboard
 * React
   * Redux Saga
   * Rechart
