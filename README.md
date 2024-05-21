@@ -8,11 +8,11 @@ title: PlanePilot
 classDiagram
     DataServer <|-- XPConnector : sends plane state
     Dashboard <|-- DataServer : dashboard retrieves all data
-    PlanePilotServer <|-- PlanePilotUI : sends user inputs
-    PlanePilotServer --|> PlanePilotUI : sends plane state
-    XPConnector <|-- PlanePilotServer : sends setpoints
-    XPConnector --|> PlanePilotServer : retrieves plane state
-    DataServer <|-- PlanePilotServer : sends setpoints
+    PlaneConnector <|-- PlanePilotUI : sends user inputs
+    PlaneConnector --|> PlanePilotUI : sends plane state
+    XPConnector <|-- PlaneConnector : sends setpoints
+    XPConnector --|> PlaneConnector : retrieves plane state
+    DataServer <|-- PlaneConnector : sends setpoints
     X-Plane <|-- XPConnector : sends setpoints
     X-Plane --|> XPConnector : retrieves plane state
     class DataServer{
