@@ -8,7 +8,7 @@ pub async fn listen_to_xplane(socket: UdpSocket) -> Result<()> {
     let mut buf: [u8; 1024] = [0_u8; 1024];
 
     loop {
-        let (len, _src) = socket.recv_from(&mut buf).await.map_err(|e| e)?;
+        let (len, _src) = socket.recv_from(&mut buf).await?;
 
         if &buf[0..4] == b"DATA" {
             for sentence in buf[5..len].chunks(36) {

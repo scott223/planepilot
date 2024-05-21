@@ -9,7 +9,7 @@ use anyhow::Result;
 pub mod xplaneudp;
 
 pub async fn run_app() -> Result<()> {
-    let socket = UdpSocket::bind("127.0.0.1:49100").await.map_err(|e| e)?;
+    let socket = UdpSocket::bind("127.0.0.1:49100").await?;
 
     // Create a tokio::mpsc channel to send and recevie the the shutdown signal across workers
     let (tx, mut rx) = mpsc::channel(32);
@@ -55,7 +55,7 @@ pub async fn run_app() -> Result<()> {
     });
 
     // Wait for all the workers to finish
-    tokio::try_join!(main_handle, terminal_handle).map_err(|e| e)?;
+    tokio::try_join!(main_handle, terminal_handle)?;
 
     Ok(())
 }
@@ -69,7 +69,7 @@ async fn run_terminal(shutdown_channel: mpsc::Sender<bool>) -> Result<()> {
                 match key_event.code {
                     KeyCode::Esc | KeyCode::Char('q') => {
                         // User pressed ESC or 'q', breaking the main loop
-                        shutdown_channel.send(true).await.map_err(|e| e)?;
+                        shutdown_channel.send(true).await?;
                         break 'mainloop;
                     }
                     KeyCode::Char('p') => {
