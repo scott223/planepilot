@@ -1,14 +1,27 @@
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
 use crossterm::event::{self, Event, KeyCode};
+use serde_json::Value;
 use tokio::{net::UdpSocket, sync::mpsc, time};
 use tokio_util::sync::CancellationToken;
 
 use anyhow::Result;
 
+pub mod utils;
+pub mod xplanedatamap;
 pub mod xplaneudp;
 
+#[derive(Debug, Clone)]
+pub struct AppState {
+    pub plane_state: HashMap<String, Value>,
+}
+
 pub async fn run_app() -> Result<()> {
+    let socket = UdpSocket::bind("127.0.0.1:49100").await?;
+    let mut app_state = AppState {
+        plane_state: HashMap::new(),
+    };
+
     let socket = UdpSocket::bind("127.0.0.1:49100").await?;
 
     // Create a tokio::mpsc channel to send and recevie the the shutdown signal across workers
@@ -23,7 +36,7 @@ pub async fn run_app() -> Result<()> {
             _ = cloned_token_udp.cancelled() => {
                 // The token was cancelled, task can shut down
             }
-            _ = xplaneudp::listen_to_xplane(socket) => {
+            _ = xplaneudp::listen_to_xplane(socket, &mut app_state) => {
                 // Long work has completed
             }
             _ = print_ja() => {
@@ -32,7 +45,7 @@ pub async fn run_app() -> Result<()> {
         }
     });
 
-    // create a seperate thread for the terminal, as this is currently blocking
+    // create a seperate task for the terminal, as this is currently blocking
     let cloned_token_terminal = token.clone();
     let terminal_handle = tokio::spawn(async move {
         tokio::select! {
@@ -69,6 +82,7 @@ async fn run_terminal(shutdown_channel: mpsc::Sender<bool>) -> Result<()> {
                 match key_event.code {
                     KeyCode::Esc | KeyCode::Char('q') => {
                         // User pressed ESC or 'q', breaking the main loop
+                        shutdown_channel.send(true).await?;
                         shutdown_channel.send(true).await?;
                         break 'mainloop;
                     }

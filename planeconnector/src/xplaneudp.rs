@@ -1,11 +1,18 @@
+use serde_json::{map, Number, Value};
+use std::collections::HashMap;
+
 use tokio::net::UdpSocket;
 
 use anyhow::{anyhow, Result};
+use tracing::{event, Level};
+
+use crate::xplanedatamap::{data_map, DataIndex, DataType};
 
 const FLOAT_LEN: usize = 4;
 
-pub async fn listen_to_xplane(socket: UdpSocket) -> Result<()> {
+pub async fn listen_to_xplane(socket: UdpSocket, app_state: &mut crate::AppState) -> Result<()> {
     let mut buf: [u8; 1024] = [0_u8; 1024];
+    let data_map: Vec<DataIndex> = data_map();
 
     loop {
         let (len, _src) = socket.recv_from(&mut buf).await?;
@@ -28,26 +35,21 @@ pub async fn listen_to_xplane(socket: UdpSocket) -> Result<()> {
                     Err(e) => return Err(anyhow!("Error translating values: {}", e)),
                 };
 
-                match sentence[0] {
-                    17_u8 => {
-                        println!(
-                            "pitch: {}, roll: {}, heading: {}",
-                            values[0], values[1], values[2]
-                        )
-                    }
-                    20_u8 => {
-                        let on_runway: bool = if values[4] == 1.0_f32 { true } else { false }; //convert a 1 to true
-
-                        println!(
-                            "latitude: {}, longitude: {}, altitude_msl: {}, altitude_agl: {}, on_runway: {} \n",
-                            values[0], values[1], values[2], values[3], on_runway
-                        )
-                    }
-                    _ => {
-                        // do nothing
-                    }
-                };
+                let _ = map_values(sentence[0], values, &data_map, &mut app_state.plane_state)
+                    .map_err(|e| {
+                        event!(
+                            Level::ERROR,
+                            "Error while mapping the floats to the plane state: {:?}",
+                            e
+                        );
+                    });
             }
+
+            event!(
+                Level::TRACE,
+                "New packets received and translated. Plane state: {:?}",
+                app_state.plane_state
+            );
         }
     }
 }
@@ -63,4 +65,41 @@ fn translate_to_floats(data_bytes: &[u8; 8 * FLOAT_LEN]) -> Result<Vec<f32>> {
     }
 
     Ok(floats)
+}
+
+fn map_values(
+    packet_index: u8,
+    values: Vec<f32>,
+    data_map: &[DataIndex],
+    plane_state: &mut HashMap<String, Value>,
+) -> Result<()> {
+    match data_map.iter().find(|m| m.index == packet_index) {
+        Some(m) => {
+            for (index, data) in m.data.iter().enumerate() {
+                match data.data_type {
+                    DataType::Float => {
+                        plane_state.insert(
+                            data.name.to_string(),
+                            Value::Number(Number::from_f64(values[index] as f64).unwrap()),
+                        );
+                    }
+                    DataType::Boolean => {
+                        let b: bool = values[index] == 1.0_f32; //convert a 1 to true
+                        plane_state.insert(data.name.to_string(), Value::Bool(b));
+                    }
+                    DataType::Integer => { // todo
+                    }
+                    DataType::Empty => {}
+                };
+            }
+        }
+        None => {
+            event!(
+                Level::DEBUG,
+                "Packet received but index not found in the datamap. Index: {:?}",
+                packet_index
+            );
+        }
+    };
+    Ok(())
 }
