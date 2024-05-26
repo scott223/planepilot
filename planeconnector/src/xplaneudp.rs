@@ -6,13 +6,13 @@ use tokio::net::UdpSocket;
 use anyhow::{anyhow, Result};
 use tracing::{event, Level};
 
-use crate::xplanedatamap::{self, DataIndex, DataType};
+use crate::xplanedatamap::{data_map, DataIndex, DataType};
 
 const FLOAT_LEN: usize = 4;
 
 pub async fn listen_to_xplane(socket: UdpSocket, app_state: &mut crate::AppState) -> Result<()> {
     let mut buf: [u8; 1024] = [0_u8; 1024];
-    let data_map: Vec<xplanedatamap::DataIndex> = xplanedatamap::data_map();
+    let data_map: Vec<DataIndex> = data_map();
 
     loop {
         let (len, _src) = socket.recv_from(&mut buf).await?;
@@ -40,8 +40,21 @@ pub async fn listen_to_xplane(socket: UdpSocket, app_state: &mut crate::AppState
                     values,
                     &data_map,
                     &mut app_state.plane_state,
-                );
+                )
+                .map_err(|e| {
+                    event!(
+                        Level::ERROR,
+                        "Error while mapping the floats to the plane state: {:?}",
+                        e
+                    );
+                });
             }
+
+            event!(
+                Level::TRACE,
+                "New packets received and translated. Plane state: {:?}",
+                app_state.plane_state
+            );
         }
     }
 }
@@ -84,12 +97,6 @@ fn floats_to_plane_state(
                     DataType::Empty => {}
                 };
             }
-
-            event!(
-                Level::TRACE,
-                "New packet received and translated. Plane state: {:?}",
-                plane_state
-            );
         }
         None => {
             event!(
@@ -99,6 +106,5 @@ fn floats_to_plane_state(
             );
         }
     };
-
     Ok(())
 }
