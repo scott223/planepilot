@@ -1,4 +1,4 @@
-use serde_json::{Number, Value};
+use serde_json::{map, Number, Value};
 use std::collections::HashMap;
 
 use tokio::net::UdpSocket;
@@ -35,19 +35,14 @@ pub async fn listen_to_xplane(socket: UdpSocket, app_state: &mut crate::AppState
                     Err(e) => return Err(anyhow!("Error translating values: {}", e)),
                 };
 
-                let _ = floats_to_plane_state(
-                    sentence[0],
-                    values,
-                    &data_map,
-                    &mut app_state.plane_state,
-                )
-                .map_err(|e| {
-                    event!(
-                        Level::ERROR,
-                        "Error while mapping the floats to the plane state: {:?}",
-                        e
-                    );
-                });
+                let _ = map_values(sentence[0], values, &data_map, &mut app_state.plane_state)
+                    .map_err(|e| {
+                        event!(
+                            Level::ERROR,
+                            "Error while mapping the floats to the plane state: {:?}",
+                            e
+                        );
+                    });
             }
 
             event!(
@@ -72,7 +67,7 @@ fn translate_to_floats(data_bytes: &[u8; 8 * FLOAT_LEN]) -> Result<Vec<f32>> {
     Ok(floats)
 }
 
-fn floats_to_plane_state(
+fn map_values(
     packet_index: u8,
     values: Vec<f32>,
     data_map: &[DataIndex],
