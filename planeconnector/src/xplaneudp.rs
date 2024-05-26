@@ -1,7 +1,7 @@
-use serde_json::{map, Number, Value};
-use std::collections::HashMap;
+use serde_json::{Number, Value};
+use std::{collections::HashMap, sync::Arc};
 
-use tokio::net::UdpSocket;
+use tokio::{net::UdpSocket, sync::Mutex};
 
 use anyhow::{anyhow, Result};
 use tracing::{event, Level};
@@ -10,7 +10,8 @@ use crate::xplanedatamap::{data_map, DataIndex, DataType};
 
 const FLOAT_LEN: usize = 4;
 
-pub async fn listen_to_xplane(socket: UdpSocket, app_state: &mut crate::AppState) -> Result<()> {
+pub async fn listen_to_xplane(app_state: &mut Arc<Mutex<crate::AppState>>) -> Result<()> {
+    let socket = UdpSocket::bind("127.0.0.1:49100").await?;
     let mut buf: [u8; 1024] = [0_u8; 1024];
     let data_map: Vec<DataIndex> = data_map();
 
@@ -35,7 +36,7 @@ pub async fn listen_to_xplane(socket: UdpSocket, app_state: &mut crate::AppState
                     Err(e) => return Err(anyhow!("Error translating values: {}", e)),
                 };
 
-                let _ = map_values(sentence[0], values, &data_map, &mut app_state.plane_state)
+                let _ = map_values(sentence[0], values, &data_map, &mut app_state.lock().await.plane_state)
                     .map_err(|e| {
                         event!(
                             Level::ERROR,
@@ -45,11 +46,11 @@ pub async fn listen_to_xplane(socket: UdpSocket, app_state: &mut crate::AppState
                     });
             }
 
-            event!(
-                Level::TRACE,
-                "New packets received and translated. Plane state: {:?}",
-                app_state.plane_state
-            );
+            //event!(
+            //    Level::TRACE,
+            //    "New packets received and translated. Plane state: {:?}",
+            //    app_state.
+            //);
         }
     }
 }

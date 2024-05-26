@@ -1,13 +1,14 @@
-use std::{collections::HashMap, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use crossterm::event::{self, Event, KeyCode};
 use serde_json::Value;
-use tokio::{net::UdpSocket, sync::mpsc, time};
+use tokio::{sync::{mpsc, Mutex}, time};
 use tokio_util::sync::CancellationToken;
 
 use anyhow::Result;
 
 pub mod utils;
+pub mod httpserver;
 pub mod xplanedatamap;
 pub mod xplaneudp;
 
@@ -17,12 +18,11 @@ pub struct AppState {
 }
 
 pub async fn run_app() -> Result<()> {
-    let socket = UdpSocket::bind("127.0.0.1:49100").await?;
-    let mut app_state = AppState {
+    let mut app_state = Arc::new(Mutex::new(AppState {
         plane_state: HashMap::new(),
-    };
+    }));
 
-    let socket = UdpSocket::bind("127.0.0.1:49100").await?;
+    let app_state_clone = app_state.clone(); //create a clone, in this case it will only create a pointer as its an Arc<Mutex
 
     // Create a tokio::mpsc channel to send and recevie the the shutdown signal across workers
     let (tx, mut rx) = mpsc::channel(32);
@@ -36,7 +36,10 @@ pub async fn run_app() -> Result<()> {
             _ = cloned_token_udp.cancelled() => {
                 // The token was cancelled, task can shut down
             }
-            _ = xplaneudp::listen_to_xplane(socket, &mut app_state) => {
+            _ = httpserver::run_server(&app_state_clone) => { //immutable reference
+                // http server has exited
+            }
+            _ = xplaneudp::listen_to_xplane(&mut app_state) => { //this wlil be the only mutable reference
                 // Long work has completed
             }
             _ = print_ja() => {
@@ -82,7 +85,6 @@ async fn run_terminal(shutdown_channel: mpsc::Sender<bool>) -> Result<()> {
                 match key_event.code {
                     KeyCode::Esc | KeyCode::Char('q') => {
                         // User pressed ESC or 'q', breaking the main loop
-                        shutdown_channel.send(true).await?;
                         shutdown_channel.send(true).await?;
                         break 'mainloop;
                     }
