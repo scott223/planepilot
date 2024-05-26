@@ -7,6 +7,8 @@ use tokio_util::sync::CancellationToken;
 
 use anyhow::Result;
 
+pub mod utils;
+pub mod xplanedatamap;
 pub mod xplaneudp;
 
 #[derive(Debug, Clone)]
@@ -15,11 +17,11 @@ pub struct AppState {
 }
 
 pub async fn run_app() -> Result<()> {
-    let _app_state = AppState {
+    let mut app_state = AppState {
         plane_state: HashMap::new(),
     };
 
-    let socket = UdpSocket::bind("127.0.0.1:49100").await.map_err(|e| e)?;
+    let socket = UdpSocket::bind("127.0.0.1:49100").await?;
 
     // Create a tokio::mpsc channel to send and recevie the the shutdown signal across workers
     let (tx, mut rx) = mpsc::channel(32);
@@ -33,7 +35,7 @@ pub async fn run_app() -> Result<()> {
             _ = cloned_token_udp.cancelled() => {
                 // The token was cancelled, task can shut down
             }
-            _ = xplaneudp::listen_to_xplane(socket) => {
+            _ = xplaneudp::listen_to_xplane(socket, &mut app_state) => {
                 // Long work has completed
             }
             _ = print_ja() => {
@@ -79,7 +81,7 @@ async fn run_terminal(shutdown_channel: mpsc::Sender<bool>) -> Result<()> {
                 match key_event.code {
                     KeyCode::Esc | KeyCode::Char('q') => {
                         // User pressed ESC or 'q', breaking the main loop
-                        shutdown_channel.send(true).await.map_err(|e| e)?;
+                        shutdown_channel.send(true).await?;
                         break 'mainloop;
                     }
                     KeyCode::Char('p') => {
