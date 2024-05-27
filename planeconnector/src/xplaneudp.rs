@@ -45,6 +45,8 @@ pub async fn listen_to_xplane(app_state: &mut Arc<RwLock<crate::AppState>>) -> R
                                 e
                             );
                         });
+
+                    
                 }
             }
 
@@ -57,7 +59,7 @@ pub async fn listen_to_xplane(app_state: &mut Arc<RwLock<crate::AppState>>) -> R
     }
 }
 
-/// Translates 
+/// Translates 32 bytes to 8 floats
 
 fn translate_bytes_to_floats(data_bytes: &[u8; 8 * FLOAT_LEN]) -> Result<Vec<f32>> {
     let mut floats: Vec<f32> = Vec::with_capacity(8);
@@ -73,7 +75,7 @@ fn translate_bytes_to_floats(data_bytes: &[u8; 8 * FLOAT_LEN]) -> Result<Vec<f32
 }
 
 /// Maps values into the plane_state, based on the data map index
-/// E.g. [['roll',float], ['pitch',float]] will map the first two floats into the plane state
+/// E.g. [['roll',float], ['pitch',float]] will map the first two floats into the plane state to roll and pitch
 
 fn map_values(
     packet_index: u8,
@@ -100,6 +102,7 @@ fn map_values(
                     DataType::Empty => {}
                 };
             }
+            plane_state.insert("last_updated_timestamp".to_string(), Value::Number(chrono::Utc::now().timestamp().into()));
         }
         None => {
             event!(
