@@ -124,7 +124,7 @@ pub struct AddState {
 
 #[debug_handler]
 pub async fn add_state(
-    State(app_state): State<AppState>,
+    State(_app_state): State<AppState>,
     Json(payload): Json<AddState>,
 ) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     println!("i: {}", payload.plane_state.len());

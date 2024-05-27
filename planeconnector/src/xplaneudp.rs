@@ -1,7 +1,7 @@
 use serde_json::{Number, Value};
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::{Arc, RwLock}};
 
-use tokio::{net::UdpSocket, sync::Mutex};
+use tokio::net::UdpSocket;
 
 use anyhow::{anyhow, Result};
 use tracing::{event, Level};
@@ -10,7 +10,7 @@ use crate::xplanedatamap::{data_map, DataIndex, DataType};
 
 const FLOAT_LEN: usize = 4;
 
-pub async fn listen_to_xplane(app_state: &mut Arc<Mutex<crate::AppState>>) -> Result<()> {
+pub async fn listen_to_xplane(app_state: &mut Arc<RwLock<crate::AppState>>) -> Result<()> {
     let socket = UdpSocket::bind("127.0.0.1:49100").await?;
     let mut buf: [u8; 1024] = [0_u8; 1024];
     let data_map: Vec<DataIndex> = data_map();
@@ -21,7 +21,7 @@ pub async fn listen_to_xplane(app_state: &mut Arc<Mutex<crate::AppState>>) -> Re
         if &buf[0..4] == b"DATA" {
             for sentence in buf[5..len].chunks(36) {
                 // there is a 0 after DATA, and only take part of the buffer that actually contains the udp packet [5..len]
-                let values = match translate_to_floats(
+                let values = match translate_bytes_to_floats(
                     &sentence[FLOAT_LEN..FLOAT_LEN + 8 * FLOAT_LEN]
                         .try_into()
                         .map_err(|e| {
@@ -36,14 +36,16 @@ pub async fn listen_to_xplane(app_state: &mut Arc<Mutex<crate::AppState>>) -> Re
                     Err(e) => return Err(anyhow!("Error translating values: {}", e)),
                 };
 
-                let _ = map_values(sentence[0], values, &data_map, &mut app_state.lock().await.plane_state)
-                    .map_err(|e| {
-                        event!(
-                            Level::ERROR,
-                            "Error while mapping the floats to the plane state: {:?}",
-                            e
-                        );
-                    });
+                { // extra scope to make sure we drop the lock
+                    let _ = map_values(sentence[0], values, &data_map, &mut app_state.write().unwrap().plane_state)
+                        .map_err(|e| {
+                            event!(
+                                Level::ERROR,
+                                "Error while mapping the floats to the plane state: {:?}",
+                                e
+                            );
+                        });
+                }
             }
 
             //event!(
@@ -55,7 +57,9 @@ pub async fn listen_to_xplane(app_state: &mut Arc<Mutex<crate::AppState>>) -> Re
     }
 }
 
-fn translate_to_floats(data_bytes: &[u8; 8 * FLOAT_LEN]) -> Result<Vec<f32>> {
+/// Translates 
+
+fn translate_bytes_to_floats(data_bytes: &[u8; 8 * FLOAT_LEN]) -> Result<Vec<f32>> {
     let mut floats: Vec<f32> = Vec::with_capacity(8);
 
     for f in data_bytes.chunks(FLOAT_LEN) {
@@ -67,6 +71,9 @@ fn translate_to_floats(data_bytes: &[u8; 8 * FLOAT_LEN]) -> Result<Vec<f32>> {
 
     Ok(floats)
 }
+
+/// Maps values into the plane_state, based on the data map index
+/// E.g. [['roll',float], ['pitch',float]] will map the first two floats into the plane state
 
 fn map_values(
     packet_index: u8,

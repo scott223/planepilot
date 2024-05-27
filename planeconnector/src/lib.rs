@@ -1,8 +1,9 @@
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::{Arc, RwLock}, time::Duration};
 
 use crossterm::event::{self, Event, KeyCode};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tokio::{sync::{mpsc, Mutex}, time};
+use tokio::{sync::mpsc, time};
 use tokio_util::sync::CancellationToken;
 
 use anyhow::Result;
@@ -12,13 +13,13 @@ pub mod httpserver;
 pub mod xplanedatamap;
 pub mod xplaneudp;
 
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AppState {
     pub plane_state: HashMap<String, Value>,
 }
 
 pub async fn run_app() -> Result<()> {
-    let mut app_state = Arc::new(Mutex::new(AppState {
+    let mut app_state: Arc<RwLock<AppState>> = Arc::new(RwLock::new(AppState {
         plane_state: HashMap::new(),
     }));
 
