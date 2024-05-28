@@ -2,6 +2,7 @@ use serde_json::{Number, Value};
 use std::{collections::HashMap, sync::{Arc, RwLock}};
 
 use tokio::net::UdpSocket;
+use tokio::sync::mpsc;
 
 use anyhow::{anyhow, Result};
 use tracing::{event, Level};
@@ -10,7 +11,59 @@ use crate::xplanedatamap::{data_map, DataIndex, DataType};
 
 const FLOAT_LEN: usize = 4;
 
-pub async fn listen_to_xplane(app_state: &mut Arc<RwLock<crate::AppState>>) -> Result<()> {
+pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<crate::Command>) -> anyhow::Result<()> {
+    let socket = UdpSocket::bind("127.0.0.1:49100").await?;
+    
+    loop {
+
+        while let Some(command) = rx.recv().await { //wait untill we received a command message
+
+            match command.command_type {
+                crate::CommandType::Elevator => {  
+                    let packet = create_data_command_package(8_u8, &[command.value, -999.0_f64, -999.0_f64])?;
+                    let _len = socket.send(&packet).await.map_err(|e| {
+                        event!(
+                        Level::ERROR,
+                        "Error sending command package sent for Elevator. Command: {:?}, and error: {:?}",
+                        command,
+                        e
+                        );
+                    }
+                );
+                    event!(
+                        Level::INFO,
+                        "Command package sent for Elevator: {:?}",
+                        command
+                    );
+                },
+                crate::CommandType::Aileron => {
+                    let packet = create_data_command_package(8_u8, &[-999.0_f64, command.value, -999.0_f64])?;
+                    let _len = socket.send(&packet).await.map_err(|e| {
+                            event!(
+                            Level::ERROR,
+                            "Error sending command package sent for Aileron. Command: {:?}, and error: {:?}",
+                            command,
+                            e
+                            );
+                        }
+                    );
+                    event!(
+                        Level::INFO,
+                        "Command package sent for Aileron: {:?}",
+                        command
+                    );
+                },
+                _ => {
+                    // todo
+                }
+            }
+        
+        }
+
+    }
+}
+
+pub async fn listen_to_xplane(app_state: &mut Arc<RwLock<crate::AppState>>) -> anyhow::Result<()> {
     let socket = UdpSocket::bind("127.0.0.1:49100").await?;
     let mut buf: [u8; 1024] = [0_u8; 1024];
     let data_map: Vec<DataIndex> = data_map();
@@ -61,7 +114,7 @@ pub async fn listen_to_xplane(app_state: &mut Arc<RwLock<crate::AppState>>) -> R
 
 /// Translates 32 bytes to 8 floats
 
-fn translate_bytes_to_floats(data_bytes: &[u8; 8 * FLOAT_LEN]) -> Result<Vec<f32>> {
+fn translate_bytes_to_floats(data_bytes: &[u8; 8 * FLOAT_LEN]) -> anyhow::Result<Vec<f32>> {
     let mut floats: Vec<f32> = Vec::with_capacity(8);
 
     for f in data_bytes.chunks(FLOAT_LEN) {
@@ -113,4 +166,28 @@ fn map_values(
         }
     };
     Ok(())
+}
+
+fn create_data_command_package(index: u8, values: &[f64]) -> anyhow::Result<[u8; 40]> {
+
+    // create a udp packet [u8; 40] of bytes
+    // structure needs to be
+    // "DATA" + index(byte) + 0 0 0 (3x zero bytes) + 8 x floats (as bytes)
+    // if not enough floats, the rest will be zeros
+    // note that a -999.0 float value will be interpreted by xplane the value will be ignored
+
+    if values.len() > 8 || values.is_empty() {
+        return Err(anyhow!("Error creating UDP data command package: cannot package more than 8 or less than 1 floats"));
+    }
+
+    let mut packet: [u8; 40] = [0_u8; 40];
+    
+    packet[0..4].copy_from_slice(b"DATA");
+    packet[4] = index;
+    
+    for (chunk, &value) in packet[8..].chunks_mut(4).zip(values) {
+        chunk.copy_from_slice(&(value as f32).to_le_bytes());
+    }
+
+    Ok(packet)
 }

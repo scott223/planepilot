@@ -18,6 +18,19 @@ pub struct AppState {
     pub plane_state: HashMap<String, Value>,
 }
 
+#[derive(Debug)]
+pub struct Command {
+    command_type: CommandType,
+    value: f64,
+}
+
+#[derive(Debug)]
+enum CommandType {
+    Throttle,
+    Aileron,
+    Elevator,
+}
+
 pub async fn run_app() -> Result<()> {
     let mut app_state: Arc<RwLock<AppState>> = Arc::new(RwLock::new(AppState {
         plane_state: HashMap::new(),
@@ -26,7 +39,7 @@ pub async fn run_app() -> Result<()> {
     let app_state_clone = app_state.clone(); //create a clone, in this case it will only create a pointer as its an Arc<Mutex
 
     // Create a tokio::mpsc channel to send and recevie the the shutdown signal across workers
-    let (tx, mut rx) = mpsc::channel(32);
+    let (tx_shutdown, mut rx_shutdown) = mpsc::channel(32);
     let token = CancellationToken::new();
 
     // spwan a thread with all the main tasks, and a task to watch the cancellation token
@@ -57,7 +70,7 @@ pub async fn run_app() -> Result<()> {
             _ = cloned_token_terminal.cancelled() => {
                 // The token was cancelled, task can shut down
             }
-            _ = run_terminal(tx) => {
+            _ = run_terminal(tx_shutdown) => {
                 // Long work has completed
             }
         }
@@ -66,7 +79,7 @@ pub async fn run_app() -> Result<()> {
     // Spawn another tokio worker to handle the shutdown once a signal is received
     let _shutdown = tokio::spawn(async move {
         // Listen for shutdown signal
-        while let Some(_shutdown_signal) = rx.recv().await { //wait untill we have a shutdown signal from on of the workers
+        while let Some(_shutdown_signal) = rx_shutdown.recv().await { //wait untill we have a shutdown signal from on of the workers
         }
         token.cancel();
     });
