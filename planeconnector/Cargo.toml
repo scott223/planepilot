@@ -9,13 +9,20 @@ edition = "2021"
 dotenv = "0.15.0"
 tokio = { version = "1.37.0", features = ["full"] }
 reqwest = { version = "0.12.4", features = ["json"] }
-serde_json = "1.0.117"
-serde = "1.0.201"
-crossterm = "0.26"
+serde = { version = "1.0.197", features = ["derive"] }
+serde_json = "1.0.115"
+crossterm = {version = "0.27", features = ['events', 'event-stream'] }
 tokio-util = "0.7.11"
 anyhow = "1.0.81"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+chrono = { version = "0.4.37", features = ["serde"] }
+
+futures = "0.3"
+futures-timer = "3.0.3"
+
+axum = { version = "0.7.5", features = ["http2", "macros"] }
+tower-http = { version = "0.5.2", features = ["trace", "cors",] }
 
 [profile.release]
 lto = true          # Enable link-time optimization
