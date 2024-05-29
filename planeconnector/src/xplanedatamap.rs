@@ -14,6 +14,7 @@ pub struct DataIndex {
     pub index: u8,
     pub data: Vec<DataStructure>,
 }
+
 pub fn data_map() -> Vec<DataIndex> {
     vec![
         DataIndex {
