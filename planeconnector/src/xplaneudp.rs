@@ -4,14 +4,15 @@ use std::{collections::HashMap, sync::{Arc, RwLock}};
 use tokio::net::UdpSocket;
 use tokio::sync::mpsc;
 
-use anyhow::{anyhow, Result};
+use anyhow::anyhow;
 use tracing::{event, Level};
 
+use crate::types::{Command, CommandType};
 use crate::xplanedatamap::{data_map, DataIndex, DataType};
 
 const FLOAT_LEN: usize = 4;
 
-pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<crate::Command>) -> anyhow::Result<()> {
+pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow::Result<()> {
     let socket = UdpSocket::bind("127.0.0.1:49100").await?;
     
     loop {
@@ -19,7 +20,7 @@ pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<crate::Command>) -> 
         while let Some(command) = rx.recv().await { //wait untill we received a command message
 
             match command.command_type {
-                crate::CommandType::Elevator => {  
+                CommandType::Elevator => {  
                     let packet = create_data_command_package(8_u8, &[command.value, -999.0_f64, -999.0_f64])?;
                     let _len = socket.send(&packet).await.map_err(|e| {
                         event!(
@@ -36,7 +37,7 @@ pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<crate::Command>) -> 
                         command
                     );
                 },
-                crate::CommandType::Aileron => {
+                CommandType::Aileron => {
                     let packet = create_data_command_package(8_u8, &[-999.0_f64, command.value, -999.0_f64])?;
                     let _len = socket.send(&packet).await.map_err(|e| {
                             event!(
@@ -98,16 +99,8 @@ pub async fn listen_to_xplane(app_state: &mut Arc<RwLock<crate::AppState>>) -> a
                                 e
                             );
                         });
-
-                    
                 }
             }
-
-            //event!(
-            //    Level::TRACE,
-            //    "New packets received and translated. Plane state: {:?}",
-            //    app_state.
-            //);
         }
     }
 }
@@ -135,7 +128,7 @@ fn map_values(
     values: Vec<f32>,
     data_map: &[DataIndex],
     plane_state: &mut HashMap<String, Value>,
-) -> Result<()> {
+) -> anyhow::Result<()> {
     match data_map.iter().find(|m| m.index == packet_index) {
         Some(m) => {
             for (index, data) in m.data.iter().enumerate() {
@@ -165,10 +158,11 @@ fn map_values(
             );
         }
     };
+
     Ok(())
 }
 
-fn create_data_command_package(index: u8, values: &[f64]) -> anyhow::Result<[u8; 40]> {
+fn create_data_command_package(index: u8, values: &[f64]) -> anyhow::Result<[u8; 41]> {
 
     // create a udp packet [u8; 40] of bytes
     // structure needs to be
@@ -180,10 +174,10 @@ fn create_data_command_package(index: u8, values: &[f64]) -> anyhow::Result<[u8;
         return Err(anyhow!("Error creating UDP data command package: cannot package more than 8 or less than 1 floats"));
     }
 
-    let mut packet: [u8; 40] = [0_u8; 40];
+    let mut packet: [u8; 41] = [0_u8; 41];
     
     packet[0..4].copy_from_slice(b"DATA");
-    packet[4] = index;
+    packet[5] = index;
     
     for (chunk, &value) in packet[8..].chunks_mut(4).zip(values) {
         chunk.copy_from_slice(&(value as f32).to_le_bytes());
