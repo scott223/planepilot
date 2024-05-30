@@ -1,31 +1,46 @@
-use std::{collections::HashMap, sync::{Arc, RwLock}, time::Duration};
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock},
+    time::Duration,
+};
 
-use crossterm::event::{Event, KeyCode, EventStream};
+use crossterm::event::{Event, EventStream, KeyCode};
 
 use futures::StreamExt;
 use futures_timer::Delay;
+use tokio::sync::mpsc;
 
-use crate::types::AppState;
+use crate::types::{AppState, PlaneState};
 
-pub mod utils;
 pub mod httpserver;
+pub mod types;
+pub mod utils;
 pub mod xplanedatamap;
 pub mod xplaneudp;
-pub mod types;
 
 pub async fn run_app() -> anyhow::Result<()> {
-    let mut app_state: Arc<RwLock<AppState>> = Arc::new(RwLock::new(AppState {
-        plane_state: HashMap::new(),
-    }));
+    let (tx_command, rx_command) = mpsc::channel(32);
 
-    let app_state_clone = app_state.clone(); //create a clone, in this case it will only create a pointer as its an Arc<Mutex
-    
+    let app_state: AppState = AppState {
+        plane_state: Arc::new(RwLock::new(PlaneState {
+            map: HashMap::new(),
+        })),
+        tx_command,
+    };
+
+    let mut plane_state_clone = app_state.plane_state.clone();
+
+    //let app_state_clone = app_state.clone(); //create a clone, in this case it will only create a pointer as its an Arc<Mutex
+
     tokio::select! {
-        _ = xplaneudp::listen_to_xplane(&mut app_state) => { //this will be the only mutable reference
+        _ = xplaneudp::listen_to_xplane(&mut plane_state_clone) => { //this will be the only mutable reference
             // Long work has completed
         }
-        _ = httpserver::run_server(&app_state_clone) => { //immutable reference, using the cloned arc
+        _ = httpserver::run_server(&app_state) => { //immutable reference, using the cloned arc
             // http server has exited
+        }
+        _ = xplaneudp::listen_to_send_commands(rx_command) => {
+
         }
         _ = run_terminal() => {
             println!("terminal completed");
@@ -42,8 +57,8 @@ async fn run_terminal() -> anyhow::Result<()> {
         let delay = Delay::new(Duration::from_millis(1_000));
 
         tokio::select! {
-            _ = delay => { 
-                println!(".\r"); 
+            _ = delay => {
+                //println!(".\r");
             },
             maybe_event = reader.next() => {
                 match maybe_event {

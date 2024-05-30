@@ -1,10 +1,20 @@
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock},
+};
+use tokio::sync::mpsc::Sender;
+
+#[derive(Debug, Clone)]
+pub struct AppState {
+    pub plane_state: Arc<RwLock<PlaneState>>,
+    pub tx_command: Sender<Command>,
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct AppState {
-    pub plane_state: HashMap<String, Value>,
+pub struct PlaneState {
+    pub map: HashMap<String, Value>,
 }
 
 #[derive(Debug)]

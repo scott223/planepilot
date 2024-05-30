@@ -1,5 +1,8 @@
 use serde_json::{Number, Value};
-use std::{collections::HashMap, sync::{Arc, RwLock}};
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock},
+};
 
 use tokio::net::UdpSocket;
 use tokio::sync::mpsc;
@@ -7,22 +10,25 @@ use tokio::sync::mpsc;
 use anyhow::anyhow;
 use tracing::{event, Level};
 
-use crate::types::{Command, CommandType};
+use crate::types::{AppState, Command, CommandType, PlaneState};
 use crate::xplanedatamap::{data_map, DataIndex, DataType};
 
 const FLOAT_LEN: usize = 4;
 
 pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow::Result<()> {
-    let socket = UdpSocket::bind("127.0.0.1:49100").await?;
-    
-    loop {
+    let socket = UdpSocket::bind("0.0.0.0:49101").await?;
 
-        while let Some(command) = rx.recv().await { //wait untill we received a command message
+    loop {
+        while let Some(command) = rx.recv().await {
+            //wait untill we received a command message
 
             match command.command_type {
-                CommandType::Elevator => {  
-                    let packet = create_data_command_package(8_u8, &[command.value, -999.0_f64, -999.0_f64])?;
-                    let _len = socket.send(&packet).await.map_err(|e| {
+                CommandType::Elevator => {
+                    let packet = create_data_command_package(
+                        8_u8,
+                        &[command.value, -999.0_f64, -999.0_f64],
+                    )?;
+                    let _len = socket.send_to(&packet, "127.0.0.1:49101").await.map_err(|e| {
                         event!(
                         Level::ERROR,
                         "Error sending command package sent for Elevator. Command: {:?}, and error: {:?}",
@@ -36,10 +42,13 @@ pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow:
                         "Command package sent for Elevator: {:?}",
                         command
                     );
-                },
+                }
                 CommandType::Aileron => {
-                    let packet = create_data_command_package(8_u8, &[-999.0_f64, command.value, -999.0_f64])?;
-                    let _len = socket.send(&packet).await.map_err(|e| {
+                    let packet = create_data_command_package(
+                        8_u8,
+                        &[-999.0_f64, command.value, -999.0_f64],
+                    )?;
+                    let _len = socket.send_to(&packet, "127.0.0.1:49101").await.map_err(|e| {
                             event!(
                             Level::ERROR,
                             "Error sending command package sent for Aileron. Command: {:?}, and error: {:?}",
@@ -53,18 +62,18 @@ pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow:
                         "Command package sent for Aileron: {:?}",
                         command
                     );
-                },
+                }
                 _ => {
                     // todo
                 }
             }
-        
         }
-
     }
 }
 
-pub async fn listen_to_xplane(app_state: &mut Arc<RwLock<crate::AppState>>) -> anyhow::Result<()> {
+pub async fn listen_to_xplane(
+    plane_state: &mut Arc<std::sync::RwLock<PlaneState>>,
+) -> anyhow::Result<()> {
     let socket = UdpSocket::bind("127.0.0.1:49100").await?;
     let mut buf: [u8; 1024] = [0_u8; 1024];
     let data_map: Vec<DataIndex> = data_map();
@@ -90,15 +99,21 @@ pub async fn listen_to_xplane(app_state: &mut Arc<RwLock<crate::AppState>>) -> a
                     Err(e) => return Err(anyhow!("Error translating values: {}", e)),
                 };
 
-                { // extra scope to make sure we drop the lock
-                    let _ = map_values(sentence[0], values, &data_map, &mut app_state.write().unwrap().plane_state)
-                        .map_err(|e| {
-                            event!(
-                                Level::ERROR,
-                                "Error while mapping the floats to the plane state: {:?}",
-                                e
-                            );
-                        });
+                {
+                    // extra scope to make sure we drop the lock
+                    let _ = map_values(
+                        sentence[0],
+                        values,
+                        &data_map,
+                        &mut plane_state.write().unwrap().map,
+                    )
+                    .map_err(|e| {
+                        event!(
+                            Level::ERROR,
+                            "Error while mapping the floats to the plane state: {:?}",
+                            e
+                        );
+                    });
                 }
             }
         }
@@ -148,7 +163,10 @@ fn map_values(
                     DataType::Empty => {}
                 };
             }
-            plane_state.insert("last_updated_timestamp".to_string(), Value::Number(chrono::Utc::now().timestamp().into()));
+            plane_state.insert(
+                "last_updated_timestamp".to_string(),
+                Value::Number(chrono::Utc::now().timestamp_millis().into()),
+            );
         }
         None => {
             event!(
@@ -163,7 +181,6 @@ fn map_values(
 }
 
 fn create_data_command_package(index: u8, values: &[f64]) -> anyhow::Result<[u8; 41]> {
-
     // create a udp packet [u8; 40] of bytes
     // structure needs to be
     // "DATA" + index(byte) + 0 0 0 (3x zero bytes) + 8 x floats (as bytes)
@@ -175,10 +192,10 @@ fn create_data_command_package(index: u8, values: &[f64]) -> anyhow::Result<[u8;
     }
 
     let mut packet: [u8; 41] = [0_u8; 41];
-    
+
     packet[0..4].copy_from_slice(b"DATA");
-    packet[5] = index;
-    
+    packet[4] = index;
+
     for (chunk, &value) in packet[8..].chunks_mut(4).zip(values) {
         chunk.copy_from_slice(&(value as f32).to_le_bytes());
     }

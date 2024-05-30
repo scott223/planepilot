@@ -1,25 +1,31 @@
+use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
+use tokio::sync::mpsc::Sender;
 
 use axum::{
-    extract::State, http::Method, routing::get, Json, Router, http::StatusCode,
+    extract::State,
+    http::{Method, StatusCode},
+    routing::{get, post},
+    Json, Router,
 };
 
 use tower_http::cors::{Any, CorsLayer};
 use tracing::{event, Level};
 
-use crate::{utils, AppState};
+use crate::{types::Command, utils, AppState};
 
-pub async fn run_server(app_state: &Arc<RwLock<AppState>>) {
+pub async fn run_server(app_state: &AppState) {
     let cors = CorsLayer::new()
-    // allow `GET` and `POST` when accessing the resource
-    .allow_methods([Method::GET, Method::POST])
-    // allow requests from any origin
-    .allow_origin(Any);
+        // allow `GET` and `POST` when accessing the resource
+        .allow_methods([Method::GET, Method::POST])
+        // allow requests from any origin
+        .allow_origin(Any);
 
     // build our application with the routes
     let app: Router = Router::new()
         .route("/", get(root))
         .route("/api/v1/state", get(get_state))
+        .route("/api/v1/command", post(send_command))
         .layer(utils::return_trace_layer())
         .layer(cors)
         .with_state(app_state.clone());
@@ -40,7 +46,6 @@ pub async fn run_server(app_state: &Arc<RwLock<AppState>>) {
     axum::serve(listener, app)
         .await
         .expect("Error serving app. Exiting.");
-
 }
 
 // basic handler that responds with a static string
@@ -48,17 +53,47 @@ async fn root() -> &'static str {
     "Hello, World!"
 }
 
-pub async fn get_state(
-    State(app_state): State<Arc<RwLock<AppState>>>,
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SendCommand {
+    pub command: String,
+    pub value: f64,
+}
+
+async fn send_command(
+    State(app_state): State<AppState>,
+    Json(payload): Json<SendCommand>,
 ) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    { // extra scope to make sure drop the lock
-        let r = app_state.read().unwrap();
-        let state = &r.plane_state;
+    match payload.command.as_str() {
+        "aileron" => {
+            let command = Command {
+                command_type: crate::types::CommandType::Aileron,
+                value: payload.value,
+            };
+            let _ = app_state
+                .tx_command
+                .send(command)
+                .await
+                .map_err(|e| event!(Level::ERROR, "Cannot send command: {:?}", e));
+            return Ok(StatusCode::OK);
+        }
+        _ => {
+            return Ok(StatusCode::NOT_FOUND);
+        }
+    }
+}
+
+pub async fn get_state(
+    State(app_state): State<AppState>,
+) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    {
+        // extra scope to make sure drop the lock
+        let r = app_state.plane_state.read().unwrap();
+        let state = &r.map;
         Ok(Json(state.clone()))
     }
 
-    /* 
-    
+    /*
+
     match update_channels(&app_state.db).await {
         Ok(c) => return Ok(Json(c)),
         Err(e) => {
