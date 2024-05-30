@@ -1,8 +1,5 @@
 use serde_json::{Number, Value};
-use std::{
-    collections::HashMap,
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 
 use tokio::net::UdpSocket;
 use tokio::sync::mpsc;
@@ -19,54 +16,38 @@ pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow:
     let socket = UdpSocket::bind("0.0.0.0:49101").await?;
 
     loop {
+        //wait untill we received a command message
         while let Some(command) = rx.recv().await {
-            //wait untill we received a command message
+            //todo: built in a 20ms delay - here or in the HTTP?
 
-            match command.command_type {
+            let packet: [u8; 41] = match command.command_type {
                 CommandType::Elevator => {
-                    let packet = create_data_command_package(
-                        8_u8,
-                        &[command.value, -999.0_f64, -999.0_f64],
-                    )?;
-                    let _len = socket.send_to(&packet, "127.0.0.1:49101").await.map_err(|e| {
-                        event!(
-                        Level::ERROR,
-                        "Error sending command package sent for Elevator. Command: {:?}, and error: {:?}",
-                        command,
-                        e
-                        );
-                    }
-                );
-                    event!(
-                        Level::INFO,
-                        "Command package sent for Elevator: {:?}",
-                        command
-                    );
+                    create_data_command_package(8_u8, &[command.value, -999.0_f64, -999.0_f64])?
                 }
                 CommandType::Aileron => {
-                    let packet = create_data_command_package(
-                        8_u8,
-                        &[-999.0_f64, command.value, -999.0_f64],
-                    )?;
-                    let _len = socket.send_to(&packet, "127.0.0.1:49101").await.map_err(|e| {
-                            event!(
-                            Level::ERROR,
-                            "Error sending command package sent for Aileron. Command: {:?}, and error: {:?}",
-                            command,
-                            e
-                            );
-                        }
-                    );
+                    create_data_command_package(8_u8, &[-999.0_f64, command.value, -999.0_f64])?
+                }
+                CommandType::Throttle => create_data_command_package(25_u8, &[command.value; 4])?,
+            };
+
+            let len = socket
+                .send_to(&packet, "127.0.0.1:49101")
+                .await
+                .map_err(|e| {
                     event!(
-                        Level::INFO,
-                        "Command package sent for Aileron: {:?}",
-                        command
+                        Level::ERROR,
+                        "Error sending command package. Command: {:?}, and error: {:?}",
+                        command,
+                        e
                     );
-                }
-                _ => {
-                    // todo
-                }
-            }
+                });
+
+            event!(
+                Level::INFO,
+                "Command package sent (len: {:?}): {:?}",
+                len,
+                command
+            );
         }
     }
 }
@@ -181,11 +162,11 @@ fn map_values(
 }
 
 fn create_data_command_package(index: u8, values: &[f64]) -> anyhow::Result<[u8; 41]> {
-    // create a udp packet [u8; 40] of bytes
+    // create a udp packet [u8; 41] of bytes
     // structure needs to be
-    // "DATA" + index(byte) + 0 0 0 (3x zero bytes) + 8 x floats (as bytes)
-    // if not enough floats, the rest will be zeros
-    // note that a -999.0 float value will be interpreted by xplane the value will be ignored
+    // "DATA" + 0 + index(byte) + 0 0 0 (3x zero bytes) + 8 x floats (as bytes)
+    // if not enough floats, the rest will be zeros so to always have 41 bytes
+    // note that a -999.0 float value will be interpreted by xplane to ignore the value
 
     if values.len() > 8 || values.is_empty() {
         return Err(anyhow!("Error creating UDP data command package: cannot package more than 8 or less than 1 floats"));

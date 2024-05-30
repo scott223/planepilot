@@ -1,4 +1,7 @@
-use tower_http::{classify::{ServerErrorsAsFailures, SharedClassifier}, trace::TraceLayer};
+use tower_http::{
+    classify::{ServerErrorsAsFailures, SharedClassifier},
+    trace::TraceLayer,
+};
 use tracing::Level;
 
 pub fn start_tracing_subscriber() {

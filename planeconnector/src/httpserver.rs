@@ -61,23 +61,31 @@ async fn send_command(
     State(app_state): State<AppState>,
     Json(payload): Json<SendCommand>,
 ) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    match payload.command.as_str() {
-        "aileron" => {
-            let command = Command {
-                command_type: crate::types::CommandType::Aileron,
-                value: payload.value,
-            };
-            let _ = app_state
-                .tx_command
-                .send(command)
-                .await
-                .map_err(|e| event!(Level::ERROR, "Cannot send command: {:?}", e));
-            Ok(StatusCode::OK)
-        }
+    let command: Command = match payload.command.as_str() {
+        "aileron" => Command {
+            command_type: crate::types::CommandType::Aileron,
+            value: payload.value.clamp(-1.0, 1.0),
+        },
+        "elevator" => Command {
+            command_type: crate::types::CommandType::Elevator,
+            value: payload.value.clamp(-1.0, 1.0),
+        },
+        "throttle" => Command {
+            command_type: crate::types::CommandType::Throttle,
+            value: payload.value.clamp(0.0, 1.0),
+        },
         _ => {
-            Ok(StatusCode::NOT_FOUND)
+            return Ok(StatusCode::NOT_IMPLEMENTED);
         }
-    }
+    };
+
+    let _ = app_state
+        .tx_command
+        .send(command)
+        .await
+        .map_err(|e| event!(Level::ERROR, "Cannot send command: {:?}", e));
+
+    Ok(StatusCode::OK)
 }
 
 pub async fn get_state(
