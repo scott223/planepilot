@@ -1,6 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, RwLock};
-use tokio::sync::mpsc::Sender;
 
 use axum::{
     extract::State,
@@ -74,10 +72,10 @@ async fn send_command(
                 .send(command)
                 .await
                 .map_err(|e| event!(Level::ERROR, "Cannot send command: {:?}", e));
-            return Ok(StatusCode::OK);
+            Ok(StatusCode::OK)
         }
         _ => {
-            return Ok(StatusCode::NOT_FOUND);
+            Ok(StatusCode::NOT_FOUND)
         }
     }
 }
@@ -91,20 +89,4 @@ pub async fn get_state(
         let state = &r.map;
         Ok(Json(state.clone()))
     }
-
-    /*
-
-    match update_channels(&app_state.db).await {
-        Ok(c) => return Ok(Json(c)),
-        Err(e) => {
-            let error_response = serde_json::json!({
-                "status": "error",
-                "message": format!("Database error: { }", e),
-            });
-            event!(Level::ERROR, "Database error { }", e);
-            return Err((StatusCode::INTERNAL_SERVER_ERROR, Json(error_response)));
-        }
-    }
-
-    */
 }

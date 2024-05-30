@@ -1,7 +1,7 @@
 use serde_json::{Number, Value};
 use std::{
     collections::HashMap,
-    sync::{Arc, RwLock},
+    sync::Arc,
 };
 
 use tokio::net::UdpSocket;
@@ -10,7 +10,7 @@ use tokio::sync::mpsc;
 use anyhow::anyhow;
 use tracing::{event, Level};
 
-use crate::types::{AppState, Command, CommandType, PlaneState};
+use crate::types::{Command, CommandType, PlaneState};
 use crate::xplanedatamap::{data_map, DataIndex, DataType};
 
 const FLOAT_LEN: usize = 4;
@@ -194,9 +194,9 @@ fn create_data_command_package(index: u8, values: &[f64]) -> anyhow::Result<[u8;
     let mut packet: [u8; 41] = [0_u8; 41];
 
     packet[0..4].copy_from_slice(b"DATA");
-    packet[4] = index;
+    packet[5] = index;
 
-    for (chunk, &value) in packet[8..].chunks_mut(4).zip(values) {
+    for (chunk, &value) in packet[9..].chunks_mut(4).zip(values) {
         chunk.copy_from_slice(&(value as f32).to_le_bytes());
     }
 
