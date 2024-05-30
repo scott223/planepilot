@@ -56,6 +56,23 @@ pub fn data_map() -> Vec<DataIndex> {
             ],
         },
         DataIndex {
+            index: 8_u8,
+            data: vec![
+                DataStructure {
+                    name: "elevator_commanded".to_string(),
+                    data_type: DataType::Float,
+                },
+                DataStructure {
+                    name: "aileron_commanded".to_string(),
+                    data_type: DataType::Float,
+                },
+                DataStructure {
+                    name: "rudder_commanded".to_string(),
+                    data_type: DataType::Float,
+                },
+            ],
+        },
+        DataIndex {
             index: 25_u8,
             data: vec![
                 DataStructure {
@@ -114,6 +131,23 @@ pub fn data_map() -> Vec<DataIndex> {
                 },
                 DataStructure {
                     name: "heading_magnetic".to_string(),
+                    data_type: DataType::Float,
+                },
+            ],
+        },
+        DataIndex {
+            index: 16_u8,
+            data: vec![
+                DataStructure {
+                    name: "Q".to_string(),
+                    data_type: DataType::Float,
+                },
+                DataStructure {
+                    name: "P".to_string(),
+                    data_type: DataType::Float,
+                },
+                DataStructure {
+                    name: "R".to_string(),
                     data_type: DataType::Float,
                 },
             ],

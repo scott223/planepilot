@@ -13,7 +13,10 @@ use crate::xplanedatamap::{data_map, DataIndex, DataType};
 const FLOAT_LEN: usize = 4;
 
 pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow::Result<()> {
-    let socket = UdpSocket::bind("0.0.0.0:49101").await?;
+    let socket = UdpSocket::bind("127.0.0.1:49100")
+        .await
+        .map_err(|e| panic!("error: {:?}", e))
+        .unwrap();
 
     loop {
         //wait untill we received a command message
@@ -31,7 +34,7 @@ pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow:
             };
 
             let len = socket
-                .send_to(&packet, "127.0.0.1:49101")
+                .send_to(&packet, "127.0.0.1:49000")
                 .await
                 .map_err(|e| {
                     event!(
@@ -55,7 +58,7 @@ pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow:
 pub async fn listen_to_xplane(
     plane_state: &mut Arc<std::sync::RwLock<PlaneState>>,
 ) -> anyhow::Result<()> {
-    let socket = UdpSocket::bind("127.0.0.1:49100").await?;
+    let socket = UdpSocket::bind("127.0.0.1:49101").await?;
     let mut buf: [u8; 1024] = [0_u8; 1024];
     let data_map: Vec<DataIndex> = data_map();
 
