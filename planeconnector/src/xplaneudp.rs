@@ -133,9 +133,15 @@ fn map_values(
             for (index, data) in m.data.iter().enumerate() {
                 match data.data_type {
                     DataType::Float => {
+                        let mut value: f64 = values[index] as f64;
+
+                        if let Some(t) = data.transformation {
+                            value = value * t;
+                        }
+
                         plane_state.insert(
                             data.name.to_string(),
-                            Value::Number(Number::from_f64(values[index] as f64).unwrap()),
+                            Value::Number(Number::from_f64(value).unwrap()),
                         );
                     }
                     DataType::Boolean => {
