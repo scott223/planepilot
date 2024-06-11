@@ -31,14 +31,14 @@ pub async fn run_server(app_state: &AppState) {
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3100")
         .await
-        .expect("cannot start listener. exiting.");
+        .expect("Cannot start listener. Exiting.");
 
     event!(
         Level::INFO,
         "Server started to listen on address {:?}",
         listener
             .local_addr()
-            .expect("error getting local addr. exiting.")
+            .expect("Error getting local address. Exiting.")
     );
 
     axum::serve(listener, app)
@@ -62,18 +62,9 @@ async fn send_command(
     Json(payload): Json<SendCommand>,
 ) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     let command: Command = match payload.command.as_str() {
-        "aileron" => Command {
-            command_type: crate::types::CommandType::Aileron,
-            value: payload.value.clamp(-1.0, 1.0),
-        },
-        "elevator" => Command {
-            command_type: crate::types::CommandType::Elevator,
-            value: payload.value.clamp(-1.0, 1.0),
-        },
-        "throttle" => Command {
-            command_type: crate::types::CommandType::Throttle,
-            value: payload.value.clamp(0.0, 1.0),
-        },
+        "aileron" => Command::new_aileron(payload.value),
+        "elevator" => Command::new_elevator(payload.value),
+        "throttle" => Command::new_throttle(payload.value),
         _ => {
             return Ok(StatusCode::NOT_IMPLEMENTED);
         }
@@ -94,7 +85,6 @@ pub async fn get_state(
     {
         // extra scope to make sure drop the lock
         let r = app_state.plane_state.read().unwrap();
-        let state = &r.map;
-        Ok(Json(state.clone()))
+        Ok(Json(r.map.clone()))
     }
 }

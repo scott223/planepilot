@@ -19,11 +19,42 @@ pub struct PlaneState {
 
 #[derive(Debug)]
 pub struct Command {
-    pub command_type: CommandType,
-    pub value: f64,
+    command_type: CommandType,
+    value: f64,
 }
 
-#[derive(Debug)]
+impl Command {
+    pub fn new_throttle(v: f64) -> Self {
+        Command {
+            command_type: CommandType::Throttle,
+            value: v.clamp(0.0, 1.0),
+        }
+    }
+
+    pub fn new_aileron(v: f64) -> Self {
+        Command {
+            command_type: CommandType::Aileron,
+            value: v.clamp(-1.0, 1.0),
+        }
+    }
+
+    pub fn new_elevator(v: f64) -> Self {
+        Command {
+            command_type: CommandType::Elevator,
+            value: v.clamp(-1.0, 1.0),
+        }
+    }
+
+    pub fn return_command_type(&self) -> CommandType {
+        self.command_type
+    }
+
+    pub fn return_value(&self) -> f64 {
+        self.value
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub enum CommandType {
     Throttle,
     Aileron,

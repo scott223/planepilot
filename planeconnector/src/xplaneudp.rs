@@ -17,17 +17,18 @@ pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow:
 
     loop {
         //wait untill we received a command message
-        while let Some(command) = rx.recv().await {
+
+        while let Some(c) = rx.recv().await {
             //todo: built in a 20ms delay - here or in the HTTP?
 
-            let packet: [u8; 41] = match command.command_type {
+            let packet: [u8; 41] = match c.return_command_type() {
                 CommandType::Elevator => {
-                    create_data_command_package(8_u8, &[command.value, -999.0_f64, -999.0_f64])?
+                    create_data_command_package(8_u8, &[c.return_value(), -999.0_f64, -999.0_f64])?
                 }
                 CommandType::Aileron => {
-                    create_data_command_package(8_u8, &[-999.0_f64, command.value, -999.0_f64])?
+                    create_data_command_package(8_u8, &[-999.0_f64, c.return_value(), -999.0_f64])?
                 }
-                CommandType::Throttle => create_data_command_package(25_u8, &[command.value; 4])?,
+                CommandType::Throttle => create_data_command_package(25_u8, &[c.return_value(); 4])?,
             };
 
             let len = socket
@@ -37,7 +38,7 @@ pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow:
                     event!(
                         Level::ERROR,
                         "Error sending command package. Command: {:?}, and error: {:?}",
-                        command,
+                        c,
                         e
                     );
                 });
@@ -46,7 +47,7 @@ pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow:
                 Level::INFO,
                 "Command package sent (len: {:?}): {:?}",
                 len,
-                command
+                c
             );
         }
     }
@@ -64,6 +65,7 @@ pub async fn listen_to_xplane(
 
         if &buf[0..4] == b"DATA" {
             for sentence in buf[5..len].chunks(36) {
+
                 // there is a 0 after DATA, and only take part of the buffer that actually contains the udp packet [5..len]
                 let values = match translate_bytes_to_floats(
                     &sentence[FLOAT_LEN..FLOAT_LEN + 8 * FLOAT_LEN]
@@ -141,7 +143,8 @@ fn map_values(
                     }
                     DataType::Integer => { // todo
                     }
-                    DataType::Empty => {}
+                    DataType::Empty => { // here we dont need to anything
+                    }
                 };
             }
             plane_state.insert(
