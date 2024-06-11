@@ -1,4 +1,5 @@
 use serde_json::{Number, Value};
+use std::time::Duration;
 use std::{collections::HashMap, sync::Arc};
 
 use tokio::net::UdpSocket;
@@ -22,7 +23,6 @@ pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow:
         //wait untill we received a command message
 
         while let Some(c) = rx.recv().await {
-            //todo: built in a 20ms delay - here or in the HTTP?
 
             let packet: [u8; 41] = match c.return_command_type() {
                 CommandType::Elevator => {
@@ -52,6 +52,9 @@ pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow:
                 len,
                 c
             );
+
+            // we add a 15 ms delay here, to make sure we dont saturate the xplane UDP interface
+            let _ = tokio::time::sleep(Duration::from_millis(15)).await; 
         }
     }
 }
@@ -137,6 +140,7 @@ fn map_values(
                     DataType::Float => {
                         let mut value: f64 = values[index] as f64;
 
+                        // apply a transformation, if there is one
                         if let Some(t) = data.transformation {
                             value = value * t;
                         }
@@ -175,7 +179,7 @@ fn map_values(
 
 fn create_data_command_package(index: u8, values: &[f64]) -> anyhow::Result<[u8; 41]> {
     // create a udp packet [u8; 41] of bytes
-    // structure needs to be
+    // structure needs to be:
     // "DATA" + 0 + index(byte) + 0 0 0 (3x zero bytes) + 8 x floats (as bytes)
     // if not enough floats, the rest will be zeros so to always have 41 bytes
     // note that a -999.0 float value will be interpreted by xplane to ignore the value
@@ -194,4 +198,27 @@ fn create_data_command_package(index: u8, values: &[f64]) -> anyhow::Result<[u8;
     }
 
     Ok(packet)
+}
+
+pub async fn reset_to_test_location() -> () {
+
+    let socket = UdpSocket::bind("127.0.0.1:49100")
+        .await
+        .map_err(|e| panic!("error: {:?}", e))
+        .unwrap();
+
+    // index 20: latitude, longitude, altitude_msl, altitude_agl, on_runway
+    let p = create_data_command_package(20_u8, &[1.0_f64, 1.0_f64, 3000_f64, -999.0_f64, 0.0_f64]).unwrap();
+
+    let _len = socket
+        .send_to(&p, "127.0.0.1:49000")
+        .await
+        .map_err(|e| {
+            event!(
+                Level::ERROR,
+                "Error sending reset package. Error: {:?}",
+                e
+            );
+        });
+
 }

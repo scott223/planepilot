@@ -78,7 +78,7 @@ async fn main() {
             }
         };
 
-        if (app_state.flying) {
+        if app_state.flying {
             //horizontal mode
 
             match app_state.horizontal_mode {
@@ -109,13 +109,13 @@ async fn main() {
 
                     let client = reqwest::Client::new();
 
-                    let res = match client
+                    let _res = match client
                         .post("http://localhost:3100/api/v1/command")
                         .json(&map)
                         .send()
                         .await
                     {
-                        Ok(res) => {}
+                        Ok(_res) => {}
                         Err(_) => {}
                     };
                 }
