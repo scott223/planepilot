@@ -12,9 +12,12 @@ use crate::types::{Command, CommandType, PlaneState};
 use crate::xplanedatamap::{data_map, DataIndex, DataType};
 
 const FLOAT_LEN: usize = 4;
+const IP_ADRR: &str = "127.0.0.1";
+const LISTENING_PORT: &str = "49100";
+const SENDING_PORT: &str = "49000";
 
 pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow::Result<()> {
-    let socket = UdpSocket::bind("127.0.0.1:49100")
+    let socket = UdpSocket::bind(IP_ADRR.to_owned()+":"+LISTENING_PORT)
         .await
         .map_err(|e| panic!("error: {:?}", e))
         .unwrap();
@@ -35,7 +38,7 @@ pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow:
             };
 
             let len = socket
-                .send_to(&packet, "127.0.0.1:49000")
+                .send_to(&packet, IP_ADRR.to_owned()+":"+SENDING_PORT)
                 .await
                 .map_err(|e| {
                     event!(
@@ -62,7 +65,7 @@ pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow:
 pub async fn listen_to_xplane(
     plane_state: &mut Arc<std::sync::RwLock<PlaneState>>,
 ) -> anyhow::Result<()> {
-    let socket = UdpSocket::bind("127.0.0.1:49101").await?;
+    let socket = UdpSocket::bind(IP_ADRR.to_owned()+":"+LISTENING_PORT).await?;
     let mut buf: [u8; 1024] = [0_u8; 1024];
     let data_map: Vec<DataIndex> = data_map();
 
@@ -202,7 +205,7 @@ fn create_data_command_package(index: u8, values: &[f64]) -> anyhow::Result<[u8;
 
 pub async fn reset_to_test_location() -> () {
 
-    let socket = UdpSocket::bind("127.0.0.1:49100")
+    let socket = UdpSocket::bind(IP_ADRR.to_owned()+":"+LISTENING_PORT)
         .await
         .map_err(|e| panic!("error: {:?}", e))
         .unwrap();
@@ -211,7 +214,7 @@ pub async fn reset_to_test_location() -> () {
     let p = create_data_command_package(20_u8, &[1.0_f64, 1.0_f64, 3000_f64, -999.0_f64, 0.0_f64]).unwrap();
 
     let _len = socket
-        .send_to(&p, "127.0.0.1:49000")
+        .send_to(&p, IP_ADRR.to_owned()+":"+SENDING_PORT)
         .await
         .map_err(|e| {
             event!(
