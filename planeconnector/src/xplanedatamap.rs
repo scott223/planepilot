@@ -8,6 +8,7 @@ pub enum DataType {
 pub struct DataStructure {
     pub name: String,
     pub data_type: DataType,
+    pub transformation: Option<f64>,
 }
 
 pub struct DataIndex {
@@ -23,18 +24,22 @@ pub fn data_map() -> Vec<DataIndex> {
                 DataStructure {
                     name: "Vind".to_string(),
                     data_type: DataType::Float,
+                    transformation: None,
                 },
                 DataStructure {
                     name: "Vind".to_string(),
                     data_type: DataType::Empty,
+                    transformation: None,
                 },
                 DataStructure {
                     name: "Vtrue".to_string(),
                     data_type: DataType::Float,
+                    transformation: None,
                 },
                 DataStructure {
                     name: "Vground".to_string(),
                     data_type: DataType::Float,
+                    transformation: None,
                 },
             ],
         },
@@ -44,14 +49,37 @@ pub fn data_map() -> Vec<DataIndex> {
                 DataStructure {
                     name: "elevator_actual".to_string(),
                     data_type: DataType::Float,
+                    transformation: None,
                 },
                 DataStructure {
                     name: "aileron_actual".to_string(),
                     data_type: DataType::Float,
+                    transformation: None,
                 },
                 DataStructure {
                     name: "rudder_actual".to_string(),
                     data_type: DataType::Float,
+                    transformation: None,
+                },
+            ],
+        },
+        DataIndex {
+            index: 8_u8,
+            data: vec![
+                DataStructure {
+                    name: "elevator_commanded".to_string(),
+                    data_type: DataType::Float,
+                    transformation: None,
+                },
+                DataStructure {
+                    name: "aileron_commanded".to_string(),
+                    data_type: DataType::Float,
+                    transformation: None,
+                },
+                DataStructure {
+                    name: "rudder_commanded".to_string(),
+                    data_type: DataType::Float,
+                    transformation: None,
                 },
             ],
         },
@@ -61,18 +89,22 @@ pub fn data_map() -> Vec<DataIndex> {
                 DataStructure {
                     name: "throttle_1_commanded".to_string(),
                     data_type: DataType::Float,
+                    transformation: None,
                 },
                 DataStructure {
                     name: "throttle_2_commanded".to_string(),
                     data_type: DataType::Float,
+                    transformation: None,
                 },
                 DataStructure {
                     name: "throttle_3_commanded".to_string(),
                     data_type: DataType::Float,
+                    transformation: None,
                 },
                 DataStructure {
                     name: "throttle_4_commanded".to_string(),
                     data_type: DataType::Float,
+                    transformation: None,
                 },
             ],
         },
@@ -82,18 +114,22 @@ pub fn data_map() -> Vec<DataIndex> {
                 DataStructure {
                     name: "throttle_1_actual".to_string(),
                     data_type: DataType::Float,
+                    transformation: None,
                 },
                 DataStructure {
                     name: "throttle_2_actual".to_string(),
                     data_type: DataType::Float,
+                    transformation: None,
                 },
                 DataStructure {
                     name: "throttle_3_actual".to_string(),
                     data_type: DataType::Float,
+                    transformation: None,
                 },
                 DataStructure {
                     name: "throttle_4_actual".to_string(),
                     data_type: DataType::Float,
+                    transformation: None,
                 },
             ],
         },
@@ -103,18 +139,42 @@ pub fn data_map() -> Vec<DataIndex> {
                 DataStructure {
                     name: "pitch".to_string(),
                     data_type: DataType::Float,
+                    transformation: None,
                 },
                 DataStructure {
                     name: "roll".to_string(),
                     data_type: DataType::Float,
+                    transformation: None,
                 },
                 DataStructure {
                     name: "heading_true".to_string(),
                     data_type: DataType::Float,
+                    transformation: None,
                 },
                 DataStructure {
                     name: "heading_magnetic".to_string(),
                     data_type: DataType::Float,
+                    transformation: None,
+                },
+            ],
+        },
+        DataIndex {
+            index: 16_u8,
+            data: vec![
+                DataStructure {
+                    name: "Q".to_string(),
+                    data_type: DataType::Float,
+                    transformation: Some(57.2958),
+                },
+                DataStructure {
+                    name: "P".to_string(),
+                    data_type: DataType::Float,
+                    transformation: Some(57.2958),
+                },
+                DataStructure {
+                    name: "R".to_string(),
+                    data_type: DataType::Float,
+                    transformation: Some(57.2958),
                 },
             ],
         },
@@ -124,22 +184,27 @@ pub fn data_map() -> Vec<DataIndex> {
                 DataStructure {
                     name: "latitude".to_string(),
                     data_type: DataType::Float,
+                    transformation: None,
                 },
                 DataStructure {
                     name: "longitude".to_string(),
                     data_type: DataType::Float,
+                    transformation: None,
                 },
                 DataStructure {
                     name: "alitude_msl".to_string(),
                     data_type: DataType::Float,
+                    transformation: None,
                 },
                 DataStructure {
                     name: "altitude_agl".to_string(),
                     data_type: DataType::Float,
+                    transformation: None,
                 },
                 DataStructure {
                     name: "on_runway".to_string(),
                     data_type: DataType::Boolean,
+                    transformation: None,
                 },
             ],
         },
