@@ -8,7 +8,7 @@ use tokio::sync::mpsc;
 use anyhow::anyhow;
 use tracing::{event, Level};
 
-use crate::types::{Command, CommandType, PlaneState};
+use crate::types::{Command, CommandType, PacketType, PlaneState};
 use crate::xplanedatamap::{data_map, DataIndex, DataType};
 
 const FLOAT_LEN: usize = 4;
@@ -23,15 +23,21 @@ pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow:
         //wait untill we received a command message
 
         while let Some(c) = rx.recv().await {
-
-            let packet: [u8; 41] = match c.return_command_type() {
-                CommandType::Elevator => {
-                    create_data_command_package(8_u8, &[c.return_value(), -999.0_f64, -999.0_f64])?
+            let packet: Vec<u8> = match c.return_command_type() {
+                CommandType::Elevator => create_packet(
+                    PacketType::Data,
+                    Some(&[c.return_value(), -999.0_f64, -999.0_f64]),
+                    Some(8_u8),
+                )?,
+                CommandType::Aileron => create_packet(
+                    PacketType::Data,
+                    Some(&[-999.0_f64, c.return_value(), -999.0_f64]),
+                    Some(8_u8),
+                )?,
+                CommandType::Throttle => {
+                    create_packet(PacketType::Data, Some(&[c.return_value()]), Some(25_u8))?
                 }
-                CommandType::Aileron => {
-                    create_data_command_package(8_u8, &[-999.0_f64, c.return_value(), -999.0_f64])?
-                }
-                CommandType::Throttle => create_data_command_package(25_u8, &[c.return_value(); 4])?,
+                CommandType::ResetPosition => create_packet(PacketType::PREL, None, None)?,
             };
 
             let len = socket
@@ -54,7 +60,7 @@ pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow:
             );
 
             // we add a 15 ms delay here, to make sure we dont saturate the xplane UDP interface
-            let _ = tokio::time::sleep(Duration::from_millis(15)).await; 
+            let _ = tokio::time::sleep(Duration::from_millis(15)).await;
         }
     }
 }
@@ -71,7 +77,6 @@ pub async fn listen_to_xplane(
 
         if &buf[0..4] == b"DATA" {
             for sentence in buf[5..len].chunks(36) {
-
                 // there is a 0 after DATA, and only take part of the buffer that actually contains the udp packet [5..len]
                 let values = match translate_bytes_to_floats(
                     &sentence[FLOAT_LEN..FLOAT_LEN + 8 * FLOAT_LEN]
@@ -177,48 +182,66 @@ fn map_values(
     Ok(())
 }
 
-fn create_data_command_package(index: u8, values: &[f64]) -> anyhow::Result<[u8; 41]> {
-    // create a udp packet [u8; 41] of bytes
-    // structure needs to be:
-    // "DATA" + 0 + index(byte) + 0 0 0 (3x zero bytes) + 8 x floats (as bytes)
-    // if not enough floats, the rest will be zeros so to always have 41 bytes
-    // note that a -999.0 float value will be interpreted by xplane to ignore the value
+fn create_packet(
+    packet_type: PacketType,
+    values: Option<&[f64]>,
+    index: Option<u8>,
+) -> anyhow::Result<Vec<u8>> {
+    let mut packet: Vec<u8> = vec![0; 41]; // we use a 41 bytes package as a starting point, as most package will be the data packet
 
-    if values.len() > 8 || values.is_empty() {
-        return Err(anyhow!("Error creating UDP data command package: cannot package more than 8 or less than 1 floats"));
+    match packet_type {
+        PacketType::Data => {
+            if index.is_none() {
+                return Err(anyhow!("Need index for data package"));
+            }
+
+            if values.is_none() {
+                return Err(anyhow!("Need values for data package"));
+            }
+
+            packet[0..4].copy_from_slice(b"DATA");
+            packet[5] = index.unwrap();
+
+            for (chunk, &value) in packet[9..].chunks_mut(4).zip(values.unwrap()) {
+                chunk.copy_from_slice(&(value as f32).to_le_bytes());
+            }
+
+            return Ok(packet);
+        }
+        PacketType::PREL => {
+            packet = vec![0; 69];
+
+            /*
+            PREL + \0 upfront (5 bytes)
+
+            struct PREL_struct
+            {
+                init_flt_enum	type_start; (4 bytes)
+                xint			p_idx; 4
+                xchr			apt_id[idDIM]; 8
+                xint			apt_rwy_idx; 4
+                xint			apt_rwy_dir; 4
+                xdob			dob_lat_deg; 8
+                xdob			dob_lon_deg; 8
+                xdob			dob_ele_mtr; 8
+                xdob			dob_psi_tru; 8
+                xdob			dob_spd_msc; 8
+            };
+
+            */
+
+            packet[0..4].copy_from_slice(b"PREL");
+            packet[5] = 6_u8; // TYPE START = loc_specify_lle
+
+            let values: [f64; 5] = [52.0665, 5.2008, 914.4, 0.0, 51.444];
+
+            for (chunk, value) in packet[29..].chunks_mut(8).zip(values) {
+                chunk.copy_from_slice(&value.to_le_bytes());
+            }
+
+            event!(Level::TRACE, "PREL packet: {:?}", packet);
+
+            return Ok(packet);
+        }
     }
-
-    let mut packet: [u8; 41] = [0_u8; 41];
-
-    packet[0..4].copy_from_slice(b"DATA");
-    packet[5] = index;
-
-    for (chunk, &value) in packet[9..].chunks_mut(4).zip(values) {
-        chunk.copy_from_slice(&(value as f32).to_le_bytes());
-    }
-
-    Ok(packet)
-}
-
-pub async fn reset_to_test_location() -> () {
-
-    let socket = UdpSocket::bind("127.0.0.1:49100")
-        .await
-        .map_err(|e| panic!("error: {:?}", e))
-        .unwrap();
-
-    // index 20: latitude, longitude, altitude_msl, altitude_agl, on_runway
-    let p = create_data_command_package(20_u8, &[1.0_f64, 1.0_f64, 3000_f64, -999.0_f64, 0.0_f64]).unwrap();
-
-    let _len = socket
-        .send_to(&p, "127.0.0.1:49000")
-        .await
-        .map_err(|e| {
-            event!(
-                Level::ERROR,
-                "Error sending reset package. Error: {:?}",
-                e
-            );
-        });
-
 }
