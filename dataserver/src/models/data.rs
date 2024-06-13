@@ -6,7 +6,7 @@ use sqlx::{sqlite::SqliteRow, FromRow, Row};
 pub struct Data {
     pub value: f64,
     pub timestamp: chrono::DateTime<Utc>,
-    pub channel: i64,
+    pub channel_name: String,
 }
 
 // implements the cast from Sqliterow to Data
@@ -15,12 +15,12 @@ impl<'r> FromRow<'r, SqliteRow> for Data {
     fn from_row(row: &'r SqliteRow) -> Result<Self, sqlx::Error> {
         let value = row.try_get("DataPointValue")?;
         let timestamp = row.try_get("CreationDate")?;
-        let channel = row.try_get("ChannelId")?;
+        let channel_name = row.try_get("ChannelName")?;
 
         Ok(Data {
             value,
             timestamp,
-            channel,
+            channel_name,
         })
     }
 }

@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use axum::{
     http::Method,
     response::sse::Event as SseEvent,
@@ -7,7 +5,7 @@ use axum::{
     Router,
 };
 use dataserver::{controller, utils};
-use tokio::sync::{broadcast, Mutex};
+use tokio::sync::broadcast;
 
 use dotenv::dotenv;
 
@@ -32,43 +30,19 @@ async fn main() {
         // allow requests from any origin
         .allow_origin(Any);
 
-    let app_state: controller::AppState = controller::AppState {
-        channels: Arc::new(Mutex::new(
-            controller::update_channels(&db)
-                .await
-                .expect("error updating channels. exiting."),
-        )),
-        db,
-        config,
-        tx,
-    };
+    let app_state: controller::AppState = controller::AppState { db, config, tx };
 
     utils::log::logo();
 
     // build our application with the routes
     let app: Router = Router::new()
         .route("/", get(root))
-        .route(
-            "/api/v1/channel",
-            post(controller::add_channel).get(controller::get_channels),
-        )
+        .route("/api/v1/channels", get(controller::get_channels))
         .route(
             "/api/v1/data",
             get(controller::get_all_data).post(controller::add_data),
         )
         .route("/api/v1/state", post(controller::add_state))
-        .route(
-            "/api/v1/channel/:channel_id/data",
-            get(controller::get_data),
-        )
-        .route(
-            "/api/v1/channel/:channel_id/stream",
-            get(dataserver::sse::sse::sse_handler_single_channel),
-        )
-        .route(
-            "/api/v1/stream",
-            get(dataserver::sse::sse::sse_handler_general_channel),
-        )
         .layer(utils::trace::return_trace_layer())
         .layer(cors)
         .with_state(app_state);
