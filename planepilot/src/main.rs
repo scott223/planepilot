@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use axum::routing::head;
 use crossterm::event::{Event, EventStream, KeyCode};
 use futures::StreamExt;
 use futures_timer::Delay;
@@ -16,6 +17,7 @@ pub struct AppState {
 enum HorizontalModes {
     Standby,
     WingsLevel,
+    Heading,
 }
 
 #[derive(Debug)]
@@ -57,7 +59,7 @@ async fn run_autopilot() -> anyhow::Result<()> {
     let mut app_state = AppState {
         flying: false,
         plane_state: HashMap::new(),
-        horizontal_mode: HorizontalModes::WingsLevel,
+        horizontal_mode: HorizontalModes::Heading,
     };
 
     loop {
@@ -93,11 +95,62 @@ async fn run_autopilot() -> anyhow::Result<()> {
         };
 
         if app_state.flying {
+            const MAX_AILERON: f64 = 0.3;
             //horizontal mode
 
             match app_state.horizontal_mode {
                 HorizontalModes::Standby => {
                     println!("Horizontal mode standby, no autopilot input for ailerons");
+                }
+                HorizontalModes::Heading => {
+                    let target_heading: f64 = 280.0;
+
+                    let heading = app_state
+                        .plane_state
+                        .get("heading_true")
+                        .unwrap()
+                        .as_f64()
+                        .unwrap();
+                    let roll: f64 = app_state.plane_state.get("roll").unwrap().as_f64().unwrap();
+                    let roll_rate = app_state.plane_state.get("P").unwrap().as_f64().unwrap();
+
+                    let kp: f64 = 0.4;
+                    let kd = 0.2;
+
+                    let heading_error: f64 = target_heading - heading;
+                    let target_roll_angle: f64 = (kp * heading_error).clamp(-30.0, 30.0);
+                    let roll_error: f64 = (target_roll_angle - roll);
+                    let target_roll_rate: f64 = (kd * roll_error).clamp(-3.0, 3.0);
+                    let roll_rate_error: f64 = (target_roll_rate - roll_rate);
+
+                    let p: f64 = 0.01;
+                    let d: f64 = 0.01;
+
+                    let aileron: f64 = (roll_error * p + roll_rate_error * d).clamp(-0.2, 0.2);
+
+                    println!(
+                        "Heading mode - heading [deg]: {:.4}, heading error [deg]: {:.4}, target_roll_angle [deg]: {:.4}, roll [deg]: {:.4}, roll_error: {:.4}, target roll rate [deg]: {:.4}, roll rate [deg/s]: {:.4}, roll_rate_error: {:.4}, aileron [0-1]: {:.4}",
+                        heading, heading_error, target_roll_angle, roll, roll_error, target_roll_rate, roll_rate, roll_rate_error, aileron
+                    );
+
+                    let mut map: HashMap<String, Value> = HashMap::new();
+                    map.insert("command".to_string(), Value::String("aileron".to_string()));
+                    map.insert(
+                        "value".to_string(),
+                        Value::Number(Number::from_f64(aileron).unwrap()),
+                    );
+
+                    let client = reqwest::Client::new();
+
+                    let _res = match client
+                        .post("http://localhost:3100/api/v1/command")
+                        .json(&map)
+                        .send()
+                        .await
+                    {
+                        Ok(_res) => {}
+                        Err(_) => {}
+                    };
                 }
                 HorizontalModes::WingsLevel => {
                     let roll: f64 = app_state.plane_state.get("roll").unwrap().as_f64().unwrap();
@@ -106,7 +159,8 @@ async fn run_autopilot() -> anyhow::Result<()> {
                     let p: f64 = 0.015;
                     let d: f64 = 0.02;
 
-                    let aileron: f64 = -(roll * p + roll_rate * d);
+                    let aileron: f64 =
+                        (-(roll * p + roll_rate * d)).clamp(-MAX_AILERON, MAX_AILERON);
 
                     println!(
                         "Wings level mode - roll [deg]: {:.4}, roll_rate [deg/s]: {:.4}, aileron [0-1]: {:.4}",
