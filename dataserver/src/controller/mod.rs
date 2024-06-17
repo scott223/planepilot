@@ -1,8 +1,8 @@
+use anyhow::anyhow;
 use serde_json::Value;
 use std::{collections::HashMap, time::Duration};
 
 use axum::{
-    debug_handler,
     extract::{Query, State},
     http::StatusCode,
     response::sse::Event as SseEvent,
@@ -13,12 +13,11 @@ use serde::{Deserialize, Serialize};
 use sqlx::{sqlite::SqliteRow, FromRow, Pool, Row, Sqlite};
 
 use tracing::{event, Level};
+use tokio::sync::broadcast;
 
 use crate::{models, utils::Config};
 
-use tokio::sync::broadcast;
-
-//note: probably we need to move the tx to the Channel, so each Channel gets its own broadcast::sender!!
+/// Holds the full app state, mostly db, config and a tx for the SSE broadcasts
 #[derive(Debug, Clone)]
 pub struct AppState {
     pub db: Pool<Sqlite>,
@@ -32,6 +31,9 @@ pub struct GetDataParams {
     frame_duration: Option<i32>,
     frame_end_offset: Option<i32>,
 }
+
+/// Gets all the data
+/// using a standard frame, but you can also specify the frame duraction and end offset to get a customized frame
 
 pub async fn get_all_data(
     State(app_state): State<AppState>,
@@ -71,55 +73,85 @@ pub async fn get_all_data(
     };
 }
 
+/// Struct to add a full state at once
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct AddState {
     pub plane_state: HashMap<String, Value>,
 }
 
-#[debug_handler]
+/// Handler to add a state Json to the database - will loop through the state hashmap and add each item
+
 pub async fn add_state(
-    State(_app_state): State<AppState>,
+    State(app_state): State<AppState>,
     Json(payload): Json<AddState>,
 ) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     println!("i: {}", payload.plane_state.len());
 
+    let timestamp: chrono::DateTime<Utc> = chrono::Utc::now();
+
     for (key, value) in payload.plane_state {
-        event!(Level::DEBUG, "key: {}, value: {}", key, value);
+
+        let data: AddData = AddData {
+            timestamp: Some(timestamp),
+            value: value.as_f64().unwrap(),
+            channel: key.clone(),
+        };
+
+        let _result = add_single_data(data, &app_state)
+        .await
+        .map_err(|e| {
+            let error_response = serde_json::json!({
+                "status": "error",
+                "message": format!("Database error: { }", e),
+            });
+            event!(Level::ERROR, "Database error { }", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
+        });        
+
+        event!(Level::DEBUG, "state added - key: {}, value: {}", key, value);
     }
 
-    let response = serde_json::json!({
-        "status": "succes",
-    });
-
-    Ok((StatusCode::OK, Json(response)))
+    Ok(StatusCode::OK)
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+/// Function to actually add a single data item to the database
+
+pub async fn add_single_data(d: AddData, app_state: &AppState) -> anyhow::Result<()> {
+
+    let _result = sqlx::query(
+        "INSERT INTO datapoints (CreationDate, ChannelName, DataPointValue) VALUES (?, ?, ?)",
+    )
+    .bind(d.timestamp.unwrap_or(chrono::Utc::now()))
+    .bind(d.channel)
+    .bind(d.value)
+    .execute(&app_state.db)
+    .await
+    .map_err(|e| {
+        return anyhow!(e);
+    });
+
+    Ok(())
+}
+
+/// Struct to define new data
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AddData {
     pub value: f64,
     pub timestamp: Option<chrono::DateTime<Utc>>,
     pub channel: String,
 }
 
+
+/// Handle to process adding single data item
+
 pub async fn add_data(
     State(app_state): State<AppState>,
     Json(payload): Json<AddData>,
 ) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let data = models::Data {
-        value: payload.value,
-        timestamp: payload.timestamp.unwrap_or(chrono::Utc::now()),
-        channel_name: payload.channel.clone(),
-    };
 
-    let s_data = data.clone();
-
-    let _result = sqlx::query(
-        "INSERT INTO datapoints (CreationDate, ChannelName, DataPointValue) VALUES (?, ?, ?)",
-    )
-    .bind(s_data.timestamp)
-    .bind(s_data.channel_name)
-    .bind(s_data.value)
-    .execute(&app_state.db)
+    let _result = add_single_data(payload, &app_state)
     .await
     .map_err(|e| {
         let error_response = serde_json::json!({
@@ -130,23 +162,24 @@ pub async fn add_data(
         (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
     });
 
-    // all good returning 201
-    Ok((StatusCode::CREATED, Json(data)))
+    Ok(StatusCode::CREATED)
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Channel {
     channel_name: String,
 }
+
 // implements the cast from Sqliterow to Data
 // will need to write implementation for Postgres as well
 impl<'r> FromRow<'r, SqliteRow> for Channel {
     fn from_row(row: &'r SqliteRow) -> Result<Self, sqlx::Error> {
         let channel_name = row.try_get("ChannelName")?;
-
         Ok(Channel { channel_name })
     }
 }
+
+/// Gets all channels currently in the db by using distinct select
 
 pub async fn get_channels(
     State(app_state): State<AppState>,

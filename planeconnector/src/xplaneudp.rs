@@ -16,6 +16,8 @@ const IP_ADRR: &str = "127.0.0.1";
 const LISTENING_PORT: &str = "49100";
 const SENDING_PORT: &str = "49000";
 
+/// Listens to mpsc channel if commands are received, and turn them into an UDP packet to send to xplane
+
 pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow::Result<()> {
     let socket = UdpSocket::bind(IP_ADRR.to_owned()+":"+LISTENING_PORT)
         .await
@@ -68,11 +70,15 @@ pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow:
     }
 }
 
+/// Listen to xplane UDP packets, and update the state accordingly
+
 pub async fn listen_to_xplane(
     plane_state: &mut Arc<std::sync::RwLock<PlaneState>>,
 ) -> anyhow::Result<()> {
     let socket = UdpSocket::bind(IP_ADRR.to_owned()+":"+LISTENING_PORT).await?;
     let mut buf: [u8; 1024] = [0_u8; 1024];
+
+    // get the datamap that contains the mapping of data packages into the state
     let data_map: Vec<DataIndex> = data_map();
 
     loop {
@@ -102,7 +108,7 @@ pub async fn listen_to_xplane(
                         sentence[0],
                         values,
                         &data_map,
-                        &mut plane_state.write().unwrap().map,
+                        &mut plane_state.write().expect("error getting plane state write Rwlock").map,
                     )
                     .map_err(|e| {
                         event!(
@@ -219,7 +225,7 @@ fn create_packet(
 
             struct PREL_struct
             {
-                init_flt_enum	type_start; (4 bytes)
+                init_flt_enum	type_start; 4 bytes
                 xint			p_idx; 4
                 xchr			apt_id[idDIM]; 8
                 xint			apt_rwy_idx; 4
@@ -236,13 +242,14 @@ fn create_packet(
             packet[0..4].copy_from_slice(b"PREL");
             packet[5] = 6_u8; // TYPE START = loc_specify_lle
 
-            let values: [f64; 5] = [52.0665, 5.2008, 914.4, 0.0, 51.444];
+            // put our plane above amsterdam at 3000 ft
+            let values: [f64; 5] = [52.3676, 4.9041, 914.4, 0.0, 51.444];
 
             for (chunk, value) in packet[29..].chunks_mut(8).zip(values) {
                 chunk.copy_from_slice(&value.to_le_bytes());
             }
 
-            event!(Level::TRACE, "PREL packet: {:?}", packet);
+            event!(Level::TRACE, "PREL packet prepared: {:?}", packet);
 
             return Ok(packet);
         }

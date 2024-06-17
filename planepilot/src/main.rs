@@ -108,6 +108,7 @@ async fn run_autopilot() -> anyhow::Result<()> {
                     let target_altitude: f64 = 3000.0; // 3000 ft
                     let target_speed = 100.0; // 100 kts
 
+                    // calculate specific (so no mass term) energy target
                     let target_kinetic: f64 =
                         0.5 * (target_speed * 0.5111) * (target_speed * 0.5111); //speed to m/s
                     let target_potential: f64 = (target_altitude * 0.304) * 9.81; // altitude to m
