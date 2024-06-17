@@ -17,6 +17,11 @@ pub struct PlaneState {
     pub map: HashMap<String, Value>,
 }
 
+pub enum PacketType {
+    Data,
+    PREL,
+}
+
 #[derive(Debug)]
 pub struct Command {
     command_type: CommandType,
@@ -45,6 +50,13 @@ impl Command {
         }
     }
 
+    pub fn new_reset() -> Self {
+        Command {
+            command_type: CommandType::ResetPosition,
+            value: 0.0_f64,
+        }
+    }
+
     pub fn return_command_type(&self) -> CommandType {
         self.command_type
     }
@@ -59,4 +71,5 @@ pub enum CommandType {
     Throttle,
     Aileron,
     Elevator,
+    ResetPosition,
 }

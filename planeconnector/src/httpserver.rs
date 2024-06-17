@@ -65,18 +65,19 @@ async fn send_command(
         "aileron" => Command::new_aileron(payload.value),
         "elevator" => Command::new_elevator(payload.value),
         "throttle" => Command::new_throttle(payload.value),
+        "reset" => Command::new_reset(),
         _ => {
             return Ok(StatusCode::NOT_IMPLEMENTED);
         }
     };
 
-    let _ = app_state
-        .tx_command
-        .send(command)
-        .await
-        .map_err(|e| event!(Level::ERROR, "Cannot send command: {:?}", e));
-
-    Ok(StatusCode::OK)
+    match app_state.tx_command.send(command).await {
+        Ok(_) => return Ok(StatusCode::OK),
+        Err(e) => {
+            event!(Level::ERROR, "Cannot send command: {:?}", e);
+            return Ok(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    }
 }
 
 pub async fn get_state(

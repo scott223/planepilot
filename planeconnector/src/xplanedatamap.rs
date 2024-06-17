@@ -192,7 +192,7 @@ pub fn data_map() -> Vec<DataIndex> {
                     transformation: None,
                 },
                 DataStructure {
-                    name: "alitude_msl".to_string(),
+                    name: "altitude_msl".to_string(),
                     data_type: DataType::Float,
                     transformation: None,
                 },
