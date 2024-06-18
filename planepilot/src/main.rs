@@ -133,7 +133,7 @@ async fn run_autopilot() -> anyhow::Result<()> {
                     let ks = 0.00000002;
                     let thr_cruise = 0.50 + target_energy * ks;
 
-                    let throttle = (ke * energy_error + thr_cruise);
+                    let throttle = ke * energy_error + thr_cruise;
 
                     println!(
                         "TEC mode - alitude [ft]: {:.4}, Vind [kt]: {:.4}, energy_error: {:.4}, throttle: {:.4}",
@@ -176,7 +176,7 @@ async fn run_autopilot() -> anyhow::Result<()> {
                     let kpr = 0.1;
 
                     let target_pitch_rate = (pitch_error * kpr).clamp(-3.0, 3.0);
-                    let pitch_rate_error = (target_pitch_rate - pitch_rate);
+                    let pitch_rate_error = target_pitch_rate - pitch_rate;
 
                     let kelevator = 0.03;
                     let kdelevator = 0.04;
@@ -234,9 +234,9 @@ async fn run_autopilot() -> anyhow::Result<()> {
 
                     let heading_error: f64 = target_heading - heading;
                     let target_roll_angle: f64 = (kp * heading_error).clamp(-30.0, 30.0);
-                    let roll_error: f64 = (target_roll_angle - roll);
+                    let roll_error: f64 = target_roll_angle - roll;
                     let target_roll_rate: f64 = (kd * roll_error).clamp(-3.0, 3.0);
-                    let roll_rate_error: f64 = (target_roll_rate - roll_rate);
+                    let roll_rate_error: f64 = target_roll_rate - roll_rate;
 
                     let p: f64 = 0.01;
                     let d: f64 = 0.01;

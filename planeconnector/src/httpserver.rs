@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 use axum::{
@@ -10,7 +12,7 @@ use axum::{
 use tower_http::cors::{Any, CorsLayer};
 use tracing::{event, Level};
 
-use crate::{types::Command, utils, AppState};
+use crate::{types::{AppState, Command}, utils};
 
 pub async fn run_server(app_state: &AppState) {
     let cors = CorsLayer::new()
@@ -71,7 +73,7 @@ async fn send_command(
         }
     };
 
-    match app_state.tx_command.send(command).await {
+    match app_state.command_sender.send(command).await {
         Ok(_) => return Ok(StatusCode::OK),
         Err(e) => {
             event!(Level::ERROR, "Cannot send command: {:?}", e);
@@ -83,9 +85,6 @@ async fn send_command(
 pub async fn get_state(
     State(app_state): State<AppState>,
 ) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    {
-        // extra scope to make sure drop the lock
-        let r = app_state.plane_state.read().unwrap();
-        Ok(Json(r.map.clone()))
-    }
+    let state: HashMap<String, serde_json::Value> = app_state.plane_state_proxy.get_state().await.expect("error getting the state");
+    Ok(Json(state))
 }
