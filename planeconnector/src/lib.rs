@@ -1,16 +1,13 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, RwLock},
-    time::Duration,
-};
+use std::time::Duration;
 
 use crossterm::event::{Event, EventStream, KeyCode};
 
 use futures::StreamExt;
 use futures_timer::Delay;
 use tokio::sync::mpsc;
+use types::PlaneState;
 
-use crate::types::{AppState, PlaneState};
+use crate::types::AppState;
 
 pub mod httpserver;
 pub mod types;
@@ -20,30 +17,28 @@ pub mod xplaneudp;
 
 pub async fn run_app() -> anyhow::Result<()> {
     let (tx_command, rx_command) = mpsc::channel(32);
+    let (tx_state, rx_state) = mpsc::channel(32);
 
-    let app_state: AppState = AppState {
-        plane_state: Arc::new(RwLock::new(PlaneState {
-            map: HashMap::new(),
-        })),
-        tx_command,
-    };
+    let plane_state = PlaneState::new(rx_state);
+    let plane_state_proxy: types::PlaneStateProxy = types::PlaneStateProxy::new(tx_state);
 
-    let mut plane_state_clone = app_state.plane_state.clone();
-
-    //let app_state_clone = app_state.clone(); //create a clone, in this case it will only create a pointer as its an Arc<Mutex
+    let app_state: AppState = AppState::new(tx_command, plane_state_proxy);
 
     tokio::select! {
-        _ = xplaneudp::listen_to_xplane(&mut plane_state_clone) => { //this will be the only mutable reference
-            // Long work has completed
+        _ = plane_state.process() => {
+    
         }
-        _ = httpserver::run_server(&app_state) => { //immutable reference, using the cloned arc
-            // http server has exited
+        _ = httpserver::run_server(&app_state) => { 
+            
+        }
+        _ = xplaneudp::listen_to_xplane(&app_state) => { 
+            
         }
         _ = xplaneudp::listen_to_send_commands(rx_command) => {
 
         }
         _ = run_terminal() => {
-            println!("terminal completed");
+
         }
     }
 

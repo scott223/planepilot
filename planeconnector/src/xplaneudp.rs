@@ -1,6 +1,6 @@
 use serde_json::{Number, Value};
 use std::time::Duration;
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 use tokio::net::UdpSocket;
 use tokio::sync::mpsc;
@@ -8,7 +8,7 @@ use tokio::sync::mpsc;
 use anyhow::anyhow;
 use tracing::{event, Level};
 
-use crate::types::{Command, CommandType, PacketType, PlaneState};
+use crate::types::{AppState, Command, CommandType, PacketType};
 use crate::xplanedatamap::{data_map, DataIndex, DataType};
 
 const FLOAT_LEN: usize = 4;
@@ -73,7 +73,7 @@ pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow:
 /// Listen to xplane UDP packets, and update the state accordingly
 
 pub async fn listen_to_xplane(
-    plane_state: &mut Arc<std::sync::RwLock<PlaneState>>,
+    app_state: &AppState,
 ) -> anyhow::Result<()> {
     let socket = UdpSocket::bind(IP_ADRR.to_owned()+":"+LISTENING_PORT).await?;
     let mut buf: [u8; 1024] = [0_u8; 1024];
@@ -102,13 +102,11 @@ pub async fn listen_to_xplane(
                     Err(e) => return Err(anyhow!("Error translating values: {}", e)),
                 };
 
-                {
-                    // extra scope to make sure we drop the lock
-                    let _ = map_values(
+
+                    let values = map_values(
                         sentence[0],
                         values,
                         &data_map,
-                        &mut plane_state.write().expect("error getting plane state write Rwlock").map,
                     )
                     .map_err(|e| {
                         event!(
@@ -117,7 +115,8 @@ pub async fn listen_to_xplane(
                             e
                         );
                     });
-                }
+
+                    app_state.plane_state_proxy.add_value_to_state(values.unwrap()).await?;
             }
         }
     }
@@ -144,9 +143,11 @@ fn translate_bytes_to_floats(data_bytes: &[u8; 8 * FLOAT_LEN]) -> anyhow::Result
 fn map_values(
     packet_index: u8,
     values: Vec<f32>,
-    data_map: &[DataIndex],
-    plane_state: &mut HashMap<String, Value>,
-) -> anyhow::Result<()> {
+    data_map: &[DataIndex]
+) -> anyhow::Result<HashMap<String,Value>> {
+
+    let mut plane_state: HashMap<String, Value> = HashMap::new();
+
     match data_map.iter().find(|m| m.index == packet_index) {
         Some(m) => {
             for (index, data) in m.data.iter().enumerate() {
@@ -188,7 +189,7 @@ fn map_values(
         }
     };
 
-    Ok(())
+    Ok(plane_state)
 }
 
 fn create_packet(
