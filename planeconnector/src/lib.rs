@@ -26,18 +26,10 @@ pub async fn run_app() -> anyhow::Result<()> {
 
     tokio::select! {
         _ = plane_state.process() => {
-    
-        _ = plane_state.process() => {
-    
         }
         _ = xplaneudp::listen_to_xplane(&app_state) => { 
             
         }
-        _ = httpserver::run_server(&app_state) => { 
-            
-        }
-        _ = xplaneudp::listen_to_xplane(&app_state) => { 
-            
         _ = httpserver::run_server(&app_state) => { 
             
         }
