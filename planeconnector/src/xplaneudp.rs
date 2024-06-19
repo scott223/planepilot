@@ -13,13 +13,13 @@ use crate::xplanedatamap::{data_map, DataIndex, DataType};
 
 const FLOAT_LEN: usize = 4;
 const IP_ADRR: &str = "127.0.0.1";
-const LISTENING_PORT: &str = "49100";
+const LISTENING_PORT: &str = "49101";
 const SENDING_PORT: &str = "49000";
 
 // Listens to mpsc channel if commands are received, and turn them into an UDP packet to send to xplane
 
 pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow::Result<()> {
-    let socket = UdpSocket::bind(IP_ADRR.to_owned() + ":" + LISTENING_PORT)
+    let socket = UdpSocket::bind(IP_ADRR.to_owned() + ":49100")
         .await
         .map_err(|e| panic!("error: {:?}", e))
         .unwrap();

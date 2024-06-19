@@ -11,6 +11,8 @@ pub struct AppState {
     flying: bool,
     plane_state: HashMap<String, Value>,
     horizontal_mode: HorizontalModes,
+    energy_error_int: f64,
+    pitch_error_int: f64,
     vertical_mode: VerticalModes,
 }
 
@@ -64,7 +66,9 @@ async fn run_autopilot() -> anyhow::Result<()> {
     let mut app_state = AppState {
         flying: false,
         plane_state: HashMap::new(),
-        horizontal_mode: HorizontalModes::WingsLevel,
+        horizontal_mode: HorizontalModes::Heading,
+        energy_error_int: 0.0,
+        pitch_error_int: 0.0,
         vertical_mode: VerticalModes::TECS,
     };
 
@@ -106,6 +110,7 @@ async fn run_autopilot() -> anyhow::Result<()> {
                 VerticalModes::TECS => {
                     let target_altitude: f64 = 3000.0; // 3000 ft
                     let target_speed = 100.0; // 100 kts
+                    let dt: f64 = 0.1;
 
                     // calculate specific (so no mass term) energy target
                     let target_kinetic: f64 =
@@ -127,16 +132,19 @@ async fn run_autopilot() -> anyhow::Result<()> {
                     let energy: f64 = kinetic + potential;
 
                     let energy_error: f64 = target_energy - energy;
+                    app_state.energy_error_int = app_state.energy_error_int + energy_error * dt;
 
-                    let ke: f64 = 0.0000011;
-                    let ks = 0.00000002;
-                    let thr_cruise = 0.50 + target_energy * ks;
+                    let ke: f64 = 0.0010;
+                    let ks = 0.0000001;
+                    let thr_cruise = 0.48 + target_energy * ks;
 
-                    let throttle = ke * energy_error + thr_cruise;
+                    let ki = 0.0001;
+
+                    let throttle = ke * energy_error + thr_cruise + app_state.energy_error_int * ki;
 
                     println!(
-                        "TEC mode - alitude [ft]: {:.4}, Vind [kt]: {:.4}, energy_error: {:.4}, throttle: {:.4}",
-                        altitude, vind, energy_error, throttle
+                        "TEC mode - alitude [ft]: {:.4}, Vind [kt]: {:.4}, energy_error: {:.4}, integral: {:.4}, throttle: {:.4}",
+                        altitude, vind, energy_error, app_state.energy_error_int, throttle
                     );
 
                     let mut map: HashMap<String, Value> = HashMap::new();
@@ -165,23 +173,28 @@ async fn run_autopilot() -> anyhow::Result<()> {
                         .as_f64()
                         .unwrap();
 
-                    let kpitch: f64 = -1.2;
+                    let kpitch: f64 = -1.5;
 
                     let target_pitch: f64 = ((target_speed - vind) * kpitch).clamp(-15.0, 15.0);
                     let pitch_error = target_pitch - pitch;
 
+                    app_state.pitch_error_int = app_state.pitch_error_int + pitch_error * dt;
+
                     let pitch_rate = app_state.plane_state.get("Q").unwrap().as_f64().unwrap();
 
-                    let kpr = 0.1;
+                    let kpr = 0.3;
 
                     let target_pitch_rate = (pitch_error * kpr).clamp(-3.0, 3.0);
                     let pitch_rate_error = target_pitch_rate - pitch_rate;
 
-                    let kelevator = 0.03;
-                    let kdelevator = 0.04;
+                    let kelevator = 0.15;
+                    let kdelevator = 0.0;
+                    let kielevator: f64 = 0.015;
 
-                    let elevator =
-                        (kelevator * pitch_error + kdelevator * pitch_rate_error).clamp(-0.3, 0.3);
+                    let elevator = (kelevator * pitch_error
+                        + kdelevator * pitch_rate_error
+                        + kielevator * app_state.pitch_error_int)
+                        .clamp(-0.3, 0.3);
 
                     println!(
                         "TEC mode - pitch [deg]: {:.4}, target_pitch [deg]: {:.4}, pitch_error [deg]: {:.4}, pitch_rate: {:.4}, target_pitch_rate: {:.4}, pitch_rate_error: {:.4}, elevator {:.4}",
@@ -217,7 +230,7 @@ async fn run_autopilot() -> anyhow::Result<()> {
                     println!("Horizontal mode standby, no autopilot input for ailerons");
                 }
                 HorizontalModes::Heading => {
-                    let target_heading: f64 = 280.0;
+                    let target_heading: f64 = 170.0;
 
                     let heading = app_state
                         .plane_state
