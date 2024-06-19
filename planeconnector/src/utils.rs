@@ -4,12 +4,15 @@ use tower_http::{
 };
 use tracing::Level;
 
+// initiatlie tracing
+
 pub fn start_tracing_subscriber() {
-    // initialize tracing
     tracing_subscriber::fmt::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
 }
+
+// prepare a trace layer for the http server that wlil connect the server to tracing
 
 pub fn return_trace_layer() -> TraceLayer<SharedClassifier<ServerErrorsAsFailures>> {
     TraceLayer::new_for_http()

@@ -1,16 +1,16 @@
+// create the structure and the actual data map that maps the
+// index and value from incoming UDP packets to values for the plane state
 pub enum DataType {
     Float,
     Boolean,
     Integer,
     Empty,
 }
-
 pub struct DataStructure {
     pub name: String,
     pub data_type: DataType,
     pub transformation: Option<f64>,
 }
-
 pub struct DataIndex {
     pub index: u8,
     pub data: Vec<DataStructure>,

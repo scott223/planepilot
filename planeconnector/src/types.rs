@@ -2,8 +2,9 @@ use serde_json::Value;
 use std::collections::HashMap;
 use tokio::sync::{mpsc, oneshot};
 
-#[derive(Debug)]
 // Define the types of commands that can be sent to the AppState actor
+
+#[derive(Debug)]
 pub enum StateSignal {
     ReturnPlaneState {
         result_sender: oneshot::Sender<HashMap<String, serde_json::value::Value>>,
@@ -11,10 +12,10 @@ pub enum StateSignal {
     UpdatePlaneState {
         state: HashMap<String, serde_json::value::Value>,
         result_sender: oneshot::Sender<bool>,
-    }
+    },
 }
 
-// App state - will not be memoryshared throuh references, but has a receiver to receive signals and a trait to respond to it
+// App state - has a receiver to receive signals and a trait to respond to it, no memory sharing
 pub struct AppState {
     plane_state: HashMap<String, Value>,
     receiver: mpsc::Receiver<StateSignal>,
@@ -24,7 +25,7 @@ impl AppState {
     pub fn new(receiver: mpsc::Receiver<StateSignal>) -> Self {
         AppState {
             plane_state: HashMap::new(),
-            receiver
+            receiver,
         }
     }
 
@@ -34,8 +35,11 @@ impl AppState {
             match signal {
                 StateSignal::ReturnPlaneState { result_sender } => {
                     let _ = result_sender.send(self.plane_state.clone());
-                } ,
-                StateSignal::UpdatePlaneState { state, result_sender } => {
+                }
+                StateSignal::UpdatePlaneState {
+                    state,
+                    result_sender,
+                } => {
                     for (key, val) in state.iter() {
                         self.plane_state.insert(key.clone(), val.clone());
                     }
@@ -61,6 +65,7 @@ impl AppStateProxy {
         }
     }
 
+    // send a command to xplane
     pub async fn send_command(&self, command: Command) -> anyhow::Result<()> {
         match self.command_sender.send(command).await {
             Ok(_) => return Ok(()),
@@ -69,20 +74,34 @@ impl AppStateProxy {
             }
         }
     }
-    
-    // Send an return state command and await the result
-    pub async fn get_state(&self) -> anyhow::Result<HashMap<String,serde_json::value::Value>> {
+
+    // Send an return state signal and await the result
+    pub async fn get_state(&self) -> anyhow::Result<HashMap<String, serde_json::value::Value>> {
         let (result_sender, result_receiver) = oneshot::channel();
-        self.state_sender.send(StateSignal::ReturnPlaneState { result_sender }).await?;
-        Ok(result_receiver.await.unwrap_or_else(|_| panic!("Failed to receive result from state")))
+        self.state_sender
+            .send(StateSignal::ReturnPlaneState { result_sender })
+            .await?;
+        Ok(result_receiver
+            .await
+            .unwrap_or_else(|_| panic!("Failed to receive result from state")))
     }
 
-    // Send an add comment
-    pub async fn add_value_to_state(&self, state: HashMap<String, serde_json::value::Value>) -> anyhow::Result<bool> {
+    // Send a value to be added to the state
+    pub async fn add_value_to_state(
+        &self,
+        state: HashMap<String, serde_json::value::Value>,
+    ) -> anyhow::Result<bool> {
         let (result_sender, result_receiver) = oneshot::channel();
-        self.state_sender.send(StateSignal::UpdatePlaneState { state, result_sender }).await?;
-        let result = result_receiver.await.unwrap_or_else(|_| panic!("Failed to receive message from state"));
-       
+        self.state_sender
+            .send(StateSignal::UpdatePlaneState {
+                state,
+                result_sender,
+            })
+            .await?;
+        let result = result_receiver
+            .await
+            .unwrap_or_else(|_| panic!("Failed to receive message from state"));
+
         Ok(result)
     }
 }
@@ -91,6 +110,8 @@ pub enum PacketType {
     Data,
     PREL,
 }
+
+// Define a command to be sent to xplane
 
 #[derive(Debug)]
 pub struct Command {
@@ -135,6 +156,8 @@ impl Command {
         self.value
     }
 }
+
+// Define the types of commands that can be sent to xplane
 
 #[derive(Debug, Clone, Copy)]
 pub enum CommandType {

@@ -6,7 +6,7 @@ use futures::StreamExt;
 use futures_timer::Delay;
 use tokio::sync::mpsc;
 
-use crate::types::{AppStateProxy, AppState};
+use crate::types::{AppState, AppStateProxy};
 
 pub mod httpserver;
 pub mod types;
@@ -15,31 +15,37 @@ pub mod xplanedatamap;
 pub mod xplaneudp;
 
 pub async fn run_app() -> anyhow::Result<()> {
+    // set up a channel for xplane commands, and state signals
     let (tx_command, rx_command) = mpsc::channel(32);
     let (tx_state, rx_state) = mpsc::channel(32);
 
+    // set up the app state and a proxy, that is linked through a channel. we can then clone and share the proxy with all the different procsesses
     let app_state: AppState = AppState::new(rx_state);
     let app_state_proxy: AppStateProxy = AppStateProxy::new(tx_state, tx_command);
 
     tokio::select! {
-        _ = app_state.process() => {
-        }
-        _ = xplaneudp::listen_to_xplane(app_state_proxy.clone()) => { 
-            
-        }
-        _ = httpserver::run_server(app_state_proxy.clone()) => { 
-            
-        }
-        _ = xplaneudp::listen_to_send_commands(rx_command) => {
 
-        }
-        _ = run_terminal() => {
+        // process that runs on the app state, that will listen to the signals from the proxy and processes these
+        _ = app_state.process() => { }
 
-        }
+        // process that listens to xplane udp packets, and updatates the state accordingly
+        _ = xplaneudp::listen_to_xplane(app_state_proxy.clone()) => { }
+
+        // process that runs an http server, to share state and receive commands from the autopilot
+        _ = httpserver::run_server(app_state_proxy.clone()) => { }
+
+        // process that listens to incomming commands (through the http server), and send them to xplane
+        _ = xplaneudp::listen_to_send_commands(rx_command) => { }
+
+        // process that runs a terminal, that looks for input (eg "q" press)
+        // this is the process that will run to completion and then the tokio::select will cancel the rest
+        _ = run_terminal() => { }
     }
 
     Ok(())
 }
+
+// listents to terminal inputs, and breaks on "q"
 
 async fn run_terminal() -> anyhow::Result<()> {
     let mut reader = EventStream::new();

@@ -1,10 +1,3 @@
-use core::panic;
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
-use serde_json::{json, Value};
-use std::collections::HashMap;
-
-use anyhow::Result;
-
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
@@ -16,6 +9,7 @@ async fn main() {
     }
 }
 
+/*
 async fn _post_state(plane_state: HashMap<String, Value>) -> Result<(), reqwest::Error> {
     let mut headers = HeaderMap::new();
 
@@ -42,3 +36,5 @@ async fn _post_state(plane_state: HashMap<String, Value>) -> Result<(), reqwest:
 
     Ok(())
 }
+
+*/

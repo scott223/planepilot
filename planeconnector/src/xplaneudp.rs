@@ -1,6 +1,6 @@
 use serde_json::{Number, Value};
-use std::time::Duration;
 use std::collections::HashMap;
+use std::time::Duration;
 
 use tokio::net::UdpSocket;
 use tokio::sync::mpsc;
@@ -16,19 +16,21 @@ const IP_ADRR: &str = "127.0.0.1";
 const LISTENING_PORT: &str = "49100";
 const SENDING_PORT: &str = "49000";
 
-/// Listens to mpsc channel if commands are received, and turn them into an UDP packet to send to xplane
+// Listens to mpsc channel if commands are received, and turn them into an UDP packet to send to xplane
 
 pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow::Result<()> {
-    let socket = UdpSocket::bind(IP_ADRR.to_owned()+":"+LISTENING_PORT)
+    let socket = UdpSocket::bind(IP_ADRR.to_owned() + ":" + LISTENING_PORT)
         .await
         .map_err(|e| panic!("error: {:?}", e))
         .unwrap();
 
     loop {
-        //wait untill we received a command message
+        // wait untill we received a command message
+        // the -999.0 means we dont change the value and xplane leaves it alone
 
         while let Some(c) = rx.recv().await {
             let packet: Vec<u8> = match c.return_command_type() {
+                // following command will create DATA packets that set certain values
                 CommandType::Elevator => create_packet(
                     PacketType::Data,
                     Some(&[c.return_value(), -999.0_f64, -999.0_f64]),
@@ -42,11 +44,14 @@ pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow:
                 CommandType::Throttle => {
                     create_packet(PacketType::Data, Some(&[c.return_value()]), Some(25_u8))?
                 }
+                // this command creates a PREL packet that will position the plane
                 CommandType::ResetPosition => create_packet(PacketType::PREL, None, None)?,
             };
 
+            // send the packet over the UdpSocket
+
             let len = socket
-                .send_to(&packet, IP_ADRR.to_owned()+":"+SENDING_PORT)
+                .send_to(&packet, IP_ADRR.to_owned() + ":" + SENDING_PORT)
                 .await
                 .map_err(|e| {
                     event!(
@@ -70,12 +75,10 @@ pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow:
     }
 }
 
-/// Listen to xplane UDP packets, and update the state accordingly
+// Listen to xplane UDP packets, and update the state accordingly
 
-pub async fn listen_to_xplane(
-    app_state_proxy: AppStateProxy,
-) -> anyhow::Result<()> {
-    let socket = UdpSocket::bind(IP_ADRR.to_owned()+":"+LISTENING_PORT).await?;
+pub async fn listen_to_xplane(app_state_proxy: AppStateProxy) -> anyhow::Result<()> {
+    let socket = UdpSocket::bind(IP_ADRR.to_owned() + ":" + LISTENING_PORT).await?;
     let mut buf: [u8; 1024] = [0_u8; 1024];
 
     // get the datamap that contains the mapping of data packages into the state
@@ -84,9 +87,11 @@ pub async fn listen_to_xplane(
     loop {
         let (len, _src) = socket.recv_from(&mut buf).await?;
 
+        // check if we get a DATA packet
         if &buf[0..4] == b"DATA" {
             for sentence in buf[5..len].chunks(36) {
                 // there is a 0 after DATA, and only take part of the buffer that actually contains the udp packet [5..len]
+                // take the data and translate the bytes to floats
                 let values = match translate_bytes_to_floats(
                     &sentence[FLOAT_LEN..FLOAT_LEN + 8 * FLOAT_LEN]
                         .try_into()
@@ -102,31 +107,28 @@ pub async fn listen_to_xplane(
                     Err(e) => return Err(anyhow!("Error translating values: {}", e)),
                 };
 
+                // use the values and datamap to make a hashmap that contains key-value pairs for the state
+                let values = map_values(sentence[0], values, &data_map).map_err(|e| {
+                    event!(
+                        Level::ERROR,
+                        "Error while mapping the floats to the plane state: {:?}",
+                        e
+                    );
+                });
 
-                    let values = map_values(
-                        sentence[0],
-                        values,
-                        &data_map,
-                    )
-                    .map_err(|e| {
-                        event!(
-                            Level::ERROR,
-                            "Error while mapping the floats to the plane state: {:?}",
-                            e
-                        );
-                    });
-
-                    app_state_proxy.add_value_to_state(values.unwrap()).await?;
+                //send a signal to the app state - via the proxy - to update the state
+                app_state_proxy.add_value_to_state(values.unwrap()).await?;
             }
         }
     }
 }
 
-/// Translates 32 bytes to 8 floats
+// Translates 32 bytes to 8 floats
 
 fn translate_bytes_to_floats(data_bytes: &[u8; 8 * FLOAT_LEN]) -> anyhow::Result<Vec<f32>> {
     let mut floats: Vec<f32> = Vec::with_capacity(8);
 
+    // chop the data in chunks and convert to a f32, using Little Endian
     for f in data_bytes.chunks(FLOAT_LEN) {
         floats.push(f32::from_le_bytes(match f.try_into() {
             Ok(b) => b,
@@ -137,15 +139,14 @@ fn translate_bytes_to_floats(data_bytes: &[u8; 8 * FLOAT_LEN]) -> anyhow::Result
     Ok(floats)
 }
 
-/// Maps values into the plane_state, based on the data map index
-/// E.g. [['roll',float], ['pitch',float]] will map the first two floats into the plane state to roll and pitch
+// Maps values into the plane_state, based on the data map index
+// E.g. [['roll',float], ['pitch',float]] will map the first two floats into the plane state to roll and pitch
 
 fn map_values(
     packet_index: u8,
     values: Vec<f32>,
-    data_map: &[DataIndex]
-) -> anyhow::Result<HashMap<String,Value>> {
-
+    data_map: &[DataIndex],
+) -> anyhow::Result<HashMap<String, Value>> {
     let mut plane_state: HashMap<String, Value> = HashMap::new();
 
     match data_map.iter().find(|m| m.index == packet_index) {
@@ -155,7 +156,7 @@ fn map_values(
                     DataType::Float => {
                         let mut value: f64 = values[index] as f64;
 
-                        // apply a transformation, if there is one
+                        // apply a transformation, if there is one, e.g. going from rad/s to deg/s
                         if let Some(t) = data.transformation {
                             value = value * t;
                         }
@@ -175,6 +176,8 @@ fn map_values(
                     }
                 };
             }
+
+            // add the current update timestamp to plane_state
             plane_state.insert(
                 "last_updated_timestamp".to_string(),
                 Value::Number(chrono::Utc::now().timestamp_millis().into()),
@@ -191,6 +194,8 @@ fn map_values(
 
     Ok(plane_state)
 }
+
+// create a packet of different types (e.g. DATA, PREL) with the values given
 
 fn create_packet(
     packet_type: PacketType,
@@ -219,8 +224,6 @@ fn create_packet(
             return Ok(packet);
         }
         PacketType::PREL => {
-            packet = vec![0; 69];
-
             /*
             PREL + \0 upfront (5 bytes)
 
@@ -240,18 +243,20 @@ fn create_packet(
 
             */
 
+            packet = vec![0; 69]; // a PREL packet is 69 bytes
+
             packet[0..4].copy_from_slice(b"PREL");
             packet[5] = 6_u8; // TYPE START = loc_specify_lle
 
-            // put our plane above amsterdam at 3000 ft
+            // put our plane above Amsterdam at 3000 ft
             let values: [f64; 5] = [52.3676, 4.9041, 914.4, 0.0, 51.444];
 
             for (chunk, value) in packet[29..].chunks_mut(8).zip(values) {
+                // Little Endian again
                 chunk.copy_from_slice(&value.to_le_bytes());
             }
 
             event!(Level::TRACE, "PREL packet prepared: {:?}", packet);
-
             return Ok(packet);
         }
     }

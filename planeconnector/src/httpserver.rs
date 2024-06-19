@@ -12,7 +12,12 @@ use axum::{
 use tower_http::cors::{Any, CorsLayer};
 use tracing::{event, Level};
 
-use crate::{types::{AppStateProxy, Command}, utils};
+use crate::{
+    types::{AppStateProxy, Command},
+    utils,
+};
+
+// define the routes and attach the state proxy, and serve the server
 
 pub async fn run_server(app_state: AppStateProxy) {
     let cors = CorsLayer::new()
@@ -43,26 +48,32 @@ pub async fn run_server(app_state: AppStateProxy) {
             .expect("Error getting local address. Exiting.")
     );
 
+    // serve the server
     axum::serve(listener, app)
         .await
         .expect("Error serving app. Exiting.");
 }
 
-// basic handler that responds with a static string
+// basic handler that responds with a static string - can be used as a heart beat
+
 async fn root() -> &'static str {
     "Hello, World!"
 }
 
+// struct to receive commands over http
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SendCommand {
     pub command: String,
     pub value: f64,
 }
 
+// receive a command and send a command message on the channel
+
 async fn send_command(
     State(app_state_proxy): State<AppStateProxy>,
     Json(payload): Json<SendCommand>,
 ) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    // create the command based on the incoming json
     let command: Command = match payload.command.as_str() {
         "aileron" => Command::new_aileron(payload.value),
         "elevator" => Command::new_elevator(payload.value),
@@ -73,6 +84,7 @@ async fn send_command(
         }
     };
 
+    // send the message
     match app_state_proxy.command_sender.send(command).await {
         Ok(_) => return Ok(StatusCode::OK),
         Err(e) => {
@@ -82,9 +94,14 @@ async fn send_command(
     }
 }
 
+// get the current state from the app and serve as a JSON
+
 pub async fn get_state(
     State(app_state_proxy): State<AppStateProxy>,
 ) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let state: HashMap<String, serde_json::Value> = app_state_proxy.get_state().await.expect("error getting the state");
+    let state: HashMap<String, serde_json::Value> = app_state_proxy
+        .get_state()
+        .await
+        .expect("error getting the state");
     Ok(Json(state))
 }
