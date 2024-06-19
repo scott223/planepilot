@@ -5,9 +5,8 @@ use crossterm::event::{Event, EventStream, KeyCode};
 use futures::StreamExt;
 use futures_timer::Delay;
 use tokio::sync::mpsc;
-use types::PlaneState;
 
-use crate::types::AppState;
+use crate::types::{AppStateProxy, AppState};
 
 pub mod httpserver;
 pub mod types;
@@ -19,18 +18,16 @@ pub async fn run_app() -> anyhow::Result<()> {
     let (tx_command, rx_command) = mpsc::channel(32);
     let (tx_state, rx_state) = mpsc::channel(32);
 
-    let plane_state = PlaneState::new(rx_state);
-    let plane_state_proxy: types::PlaneStateProxy = types::PlaneStateProxy::new(tx_state);
-
-    let app_state: AppState = AppState::new(tx_command, plane_state_proxy);
+    let app_state: AppState = AppState::new(rx_state);
+    let app_state_proxy: AppStateProxy = AppStateProxy::new(tx_state, tx_command);
 
     tokio::select! {
-        _ = plane_state.process() => {
+        _ = app_state.process() => {
         }
-        _ = xplaneudp::listen_to_xplane(&app_state) => { 
+        _ = xplaneudp::listen_to_xplane(app_state_proxy.clone()) => { 
             
         }
-        _ = httpserver::run_server(&app_state) => { 
+        _ = httpserver::run_server(app_state_proxy.clone()) => { 
             
         }
         _ = xplaneudp::listen_to_send_commands(rx_command) => {

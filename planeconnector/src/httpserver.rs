@@ -12,9 +12,9 @@ use axum::{
 use tower_http::cors::{Any, CorsLayer};
 use tracing::{event, Level};
 
-use crate::{types::{AppState, Command}, utils};
+use crate::{types::{AppStateProxy, Command}, utils};
 
-pub async fn run_server(app_state: &AppState) {
+pub async fn run_server(app_state: AppStateProxy) {
     let cors = CorsLayer::new()
         // allow `GET` and `POST` when accessing the resource
         .allow_methods([Method::GET, Method::POST])
@@ -28,7 +28,7 @@ pub async fn run_server(app_state: &AppState) {
         .route("/api/v1/command", post(send_command))
         .layer(utils::return_trace_layer())
         .layer(cors)
-        .with_state(app_state.clone());
+        .with_state(app_state);
 
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3100")
@@ -60,7 +60,7 @@ pub struct SendCommand {
 }
 
 async fn send_command(
-    State(app_state): State<AppState>,
+    State(app_state_proxy): State<AppStateProxy>,
     Json(payload): Json<SendCommand>,
 ) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     let command: Command = match payload.command.as_str() {
@@ -73,7 +73,7 @@ async fn send_command(
         }
     };
 
-    match app_state.command_sender.send(command).await {
+    match app_state_proxy.command_sender.send(command).await {
         Ok(_) => return Ok(StatusCode::OK),
         Err(e) => {
             event!(Level::ERROR, "Cannot send command: {:?}", e);
@@ -83,8 +83,8 @@ async fn send_command(
 }
 
 pub async fn get_state(
-    State(app_state): State<AppState>,
+    State(app_state_proxy): State<AppStateProxy>,
 ) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let state: HashMap<String, serde_json::Value> = app_state.plane_state_proxy.get_state().await.expect("error getting the state");
+    let state: HashMap<String, serde_json::Value> = app_state_proxy.get_state().await.expect("error getting the state");
     Ok(Json(state))
 }

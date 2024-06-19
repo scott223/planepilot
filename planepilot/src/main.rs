@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use axum::routing::head;
 use crossterm::event::{Event, EventStream, KeyCode};
 use futures::StreamExt;
 use futures_timer::Delay;

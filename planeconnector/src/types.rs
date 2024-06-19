@@ -2,10 +2,9 @@ use serde_json::Value;
 use std::collections::HashMap;
 use tokio::sync::{mpsc, oneshot};
 
-
 #[derive(Debug)]
-// Define the types of commands that can be sent to the actor
-pub enum StateCommand {
+// Define the types of commands that can be sent to the AppState actor
+pub enum StateSignal {
     ReturnPlaneState {
         result_sender: oneshot::Sender<HashMap<String, serde_json::value::Value>>,
     },
@@ -15,45 +14,30 @@ pub enum StateCommand {
     }
 }
 
-#[derive(Clone)]
+// App state - will not be memoryshared throuh references, but has a receiver to receive signals and a trait to respond to it
 pub struct AppState {
-    pub command_sender: mpsc::Sender<Command>,
-    pub plane_state_proxy: PlaneStateProxy,
+    plane_state: HashMap<String, Value>,
+    receiver: mpsc::Receiver<StateSignal>,
 }
 
 impl AppState {
-    pub fn new(c_tx: mpsc::Sender<Command>, plane_state_proxy: PlaneStateProxy) -> Self {
+    pub fn new(receiver: mpsc::Receiver<StateSignal>) -> Self {
         AppState {
-            command_sender: c_tx,
-            plane_state_proxy,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct PlaneState {
-    map: HashMap<String, Value>,
-    receiver: mpsc::Receiver<StateCommand>,
-}
-
-impl PlaneState {
-    pub fn new(receiver: mpsc::Receiver<StateCommand>) -> Self {
-        PlaneState{
-            map: HashMap::new(),
-            receiver,
+            plane_state: HashMap::new(),
+            receiver
         }
     }
 
     // Process incoming commands asynchronously
     pub async fn process(mut self) {
-        while let Some(command) = self.receiver.recv().await {
-            match command {
-                StateCommand::ReturnPlaneState { result_sender } => {
-                    let _ = result_sender.send(self.map.clone());
+        while let Some(signal) = self.receiver.recv().await {
+            match signal {
+                StateSignal::ReturnPlaneState { result_sender } => {
+                    let _ = result_sender.send(self.plane_state.clone());
                 } ,
-                StateCommand::UpdatePlaneState { state, result_sender } => {
+                StateSignal::UpdatePlaneState { state, result_sender } => {
                     for (key, val) in state.iter() {
-                        self.map.insert(key.clone(), val.clone());
+                        self.plane_state.insert(key.clone(), val.clone());
                     }
                     let _ = result_sender.send(true);
                 }
@@ -64,28 +48,39 @@ impl PlaneState {
 
 // Define the proxy struct for interacting with the actor
 #[derive(Clone)]
-pub struct PlaneStateProxy {
-    sender: mpsc::Sender<StateCommand>,
+pub struct AppStateProxy {
+    pub state_sender: mpsc::Sender<StateSignal>,
+    pub command_sender: mpsc::Sender<Command>,
 }
 
-impl PlaneStateProxy {
-    pub fn new(s: mpsc::Sender<StateCommand>) -> Self {
-        PlaneStateProxy {
-            sender: s,
+impl AppStateProxy {
+    pub fn new(s: mpsc::Sender<StateSignal>, c: mpsc::Sender<Command>) -> Self {
+        AppStateProxy {
+            state_sender: s,
+            command_sender: c,
+        }
+    }
+
+    pub async fn send_command(&self, command: Command) -> anyhow::Result<()> {
+        match self.command_sender.send(command).await {
+            Ok(_) => return Ok(()),
+            Err(e) => {
+                return Err(e.into());
+            }
         }
     }
     
     // Send an return state command and await the result
     pub async fn get_state(&self) -> anyhow::Result<HashMap<String,serde_json::value::Value>> {
         let (result_sender, result_receiver) = oneshot::channel();
-        self.sender.send(StateCommand::ReturnPlaneState { result_sender }).await?;
+        self.state_sender.send(StateSignal::ReturnPlaneState { result_sender }).await?;
         Ok(result_receiver.await.unwrap_or_else(|_| panic!("Failed to receive result from state")))
     }
 
     // Send an add comment
     pub async fn add_value_to_state(&self, state: HashMap<String, serde_json::value::Value>) -> anyhow::Result<bool> {
         let (result_sender, result_receiver) = oneshot::channel();
-        self.sender.send(StateCommand::UpdatePlaneState { state, result_sender }).await?;
+        self.state_sender.send(StateSignal::UpdatePlaneState { state, result_sender }).await?;
         let result = result_receiver.await.unwrap_or_else(|_| panic!("Failed to receive message from state"));
        
         Ok(result)

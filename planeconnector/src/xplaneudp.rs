@@ -8,7 +8,7 @@ use tokio::sync::mpsc;
 use anyhow::anyhow;
 use tracing::{event, Level};
 
-use crate::types::{AppState, Command, CommandType, PacketType};
+use crate::types::{AppStateProxy, Command, CommandType, PacketType};
 use crate::xplanedatamap::{data_map, DataIndex, DataType};
 
 const FLOAT_LEN: usize = 4;
@@ -73,7 +73,7 @@ pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow:
 /// Listen to xplane UDP packets, and update the state accordingly
 
 pub async fn listen_to_xplane(
-    app_state: &AppState,
+    app_state_proxy: AppStateProxy,
 ) -> anyhow::Result<()> {
     let socket = UdpSocket::bind(IP_ADRR.to_owned()+":"+LISTENING_PORT).await?;
     let mut buf: [u8; 1024] = [0_u8; 1024];
@@ -116,7 +116,7 @@ pub async fn listen_to_xplane(
                         );
                     });
 
-                    app_state.plane_state_proxy.add_value_to_state(values.unwrap()).await?;
+                    app_state_proxy.add_value_to_state(values.unwrap()).await?;
             }
         }
     }
