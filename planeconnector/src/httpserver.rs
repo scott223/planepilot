@@ -68,7 +68,6 @@ pub struct SendCommand {
 }
 
 // receive a command and send a command message on the channel
-
 async fn send_command(
     State(app_state_proxy): State<AppStateProxy>,
     Json(payload): Json<SendCommand>,
@@ -95,7 +94,6 @@ async fn send_command(
 }
 
 // get the current state from the app and serve as a JSON
-
 pub async fn get_state(
     State(app_state_proxy): State<AppStateProxy>,
 ) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {

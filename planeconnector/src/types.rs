@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use tokio::sync::{mpsc, oneshot};
 
 // Define the types of commands that can be sent to the AppState actor
-
 #[derive(Debug)]
 pub enum StateSignal {
     ReturnPlaneState {
@@ -75,7 +74,7 @@ impl AppStateProxy {
         }
     }
 
-    // Send an return state signal and await the result
+    // send and return state signal and await the result
     pub async fn get_state(&self) -> anyhow::Result<HashMap<String, serde_json::value::Value>> {
         let (result_sender, result_receiver) = oneshot::channel();
         self.state_sender
@@ -106,13 +105,13 @@ impl AppStateProxy {
     }
 }
 
+// define possible UDP packet types, to be send to xplane
 pub enum PacketType {
     Data,
     PREL,
 }
 
 // Define a command to be sent to xplane
-
 #[derive(Debug)]
 pub struct Command {
     command_type: CommandType,
