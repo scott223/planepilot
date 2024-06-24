@@ -13,7 +13,9 @@ async fn main() {
     println!("Planepilot started");
 
     match planepilot::run_app().await {
-        Ok(_) => { }
-        Err(e) => { println!("Error: {}",e)}
+        Ok(_) => {}
+        Err(e) => {
+            println!("Error: {}", e)
+        }
     }
 }
