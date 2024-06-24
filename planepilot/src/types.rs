@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
 use anyhow::anyhow;
+use serde::Deserialize;
+use serde::Serialize;
 use serde_json::Value;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
@@ -41,14 +43,13 @@ pub struct PlaneStateStruct {
     pub heading: f64,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct AutoPilotState {
     pub are_we_flying: bool,
     pub vertical_guidance: VerticalGuidance,
     pub horizontal_guidance: HorizontalGuidance,
 }
-
-#[derive(Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct VerticalGuidance {
     pub vertical_mode: VerticalModes,
     pub velocity_setpoint: f64,
@@ -59,7 +60,7 @@ pub struct VerticalGuidance {
     pub pitch_error_integral: f64,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct HorizontalGuidance {
     pub horizontal_mode: HorizontalModes,
     pub heading_setpoint: f64,
@@ -67,13 +68,13 @@ pub struct HorizontalGuidance {
     pub heading_error_integral: f64,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum VerticalModes {
     Standby,
     TECS,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum HorizontalModes {
     Standby,
     WingsLevel,
@@ -674,4 +675,15 @@ impl AppStateProxy {
             _ => return Err(anyhow!("Error with receiving result from autopilot state")),
         }
     }
+}
+
+pub struct Command {
+    pub command_type: CommandType,
+    pub value: f64,
+}
+
+pub enum CommandType {
+    Aileron,
+    Elevator,
+    Throttle,
 }

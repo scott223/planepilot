@@ -1,16 +1,9 @@
-use std::collections::HashMap;
-
-use crossterm::event::{Event, EventStream, KeyCode};
-use futures::StreamExt;
-use futures_timer::Delay;
-use planepilot::types::{self, HorizontalModes, VerticalModes};
-use tokio::time::Duration;
-
-use serde_json::{Number, Value};
-
 #[tokio::main]
 async fn main() {
     println!("Planepilot started");
+
+    dotenv::dotenv().ok();
+    planepilot::utils::start_tracing_subscriber();
 
     match planepilot::run_app().await {
         Ok(_) => {}

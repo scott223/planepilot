@@ -35,7 +35,7 @@ pub async fn run_server(app_state: AppStateProxy) {
         .layer(cors)
         .with_state(app_state);
 
-    // run our app with hyper, listening globally on port 3000
+    // run our app with hyper, listening globally on port 3100
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3100")
         .await
         .expect("Cannot start listener. Exiting.");
@@ -101,5 +101,7 @@ pub async fn get_state(
         .get_state()
         .await
         .expect("error getting the state");
+
+    
     Ok(Json(state))
 }
