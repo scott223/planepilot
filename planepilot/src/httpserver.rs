@@ -1,7 +1,7 @@
 use axum::{
     extract::{Path, State},
     http::{Method, StatusCode},
-    routing::{get, post},
+    routing::get,
     Json, Router,
 };
 
@@ -22,7 +22,7 @@ pub async fn run_server(app_state_proxy: AppStateProxy) {
     let app: Router = Router::new()
         .route("/", get(root))
         .route("/api/v1/state", get(get_autopilot_state))
-        .route("/api/v1/activate/:direction/:mode", post(activate_mode))
+        .route("/api/v1/activate/:direction/:mode", get(activate_mode))
         .layer(utils::return_trace_layer())
         .layer(cors)
         .with_state(app_state_proxy);
@@ -31,6 +31,8 @@ pub async fn run_server(app_state_proxy: AppStateProxy) {
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3200")
         .await
         .expect("Cannot start listener. Exiting.");
+
+    println!("hey");
 
     event!(
         Level::INFO,
@@ -59,6 +61,7 @@ pub async fn get_autopilot_state(
         .get_auto_pilot_state()
         .await
         .expect("error getting the state");
+
     Ok(Json(state))
 }
 
@@ -66,50 +69,30 @@ async fn activate_mode(
     Path((direction, mode)): Path<(String, String)>,
     State(app_state_proxy): State<AppStateProxy>,
 ) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    match (direction.as_str(), mode.as_str()) {
-        ("horizontal", "standby") => {
-            match app_state_proxy.activate_horizontal_standby_mode().await {
-                Ok(_) => return Ok(StatusCode::OK),
-                Err(e) => {
-                    event!(Level::ERROR, "Cannot set autopilot mode: {:?}", e);
-                    return Ok(StatusCode::INTERNAL_SERVER_ERROR);
-                }
-            }
-        }
-        ("horizontal", "wingslevel") => {
-            match app_state_proxy.activate_horizontal_wingslevel_mode().await {
-                Ok(_) => return Ok(StatusCode::OK),
-                Err(e) => {
-                    event!(Level::ERROR, "Cannot set autopilot mode: {:?}", e);
-                    return Ok(StatusCode::INTERNAL_SERVER_ERROR);
-                }
-            }
-        }
-        ("horizontal", "heading") => {
-            match app_state_proxy.activate_horizontal_heading_mode().await {
-                Ok(_) => return Ok(StatusCode::OK),
-                Err(e) => {
-                    event!(Level::ERROR, "Cannot set autopilot mode: {:?}", e);
-                    return Ok(StatusCode::INTERNAL_SERVER_ERROR);
-                }
-            }
-        }
-        ("vertical", "standby") => match app_state_proxy.activate_vertical_standby_mode().await {
-            Ok(_) => return Ok(StatusCode::OK),
-            Err(e) => {
-                event!(Level::ERROR, "Cannot set autopilot mode: {:?}", e);
-                return Ok(StatusCode::INTERNAL_SERVER_ERROR);
-            }
-        },
-        ("vertical", "tecs") => match app_state_proxy.activate_vertical_TECS_mode().await {
-            Ok(_) => return Ok(StatusCode::OK),
-            Err(e) => {
-                event!(Level::ERROR, "Cannot set autopilot mode: {:?}", e);
-                return Ok(StatusCode::INTERNAL_SERVER_ERROR);
-            }
-        },
+    let res = match (direction.as_str(), mode.as_str()) {
+        ("horizontal", "standby") => app_state_proxy.activate_horizontal_standby_mode().await,
+        ("horizontal", "wingslevel") => app_state_proxy.activate_horizontal_wingslevel_mode().await,
+        ("horizontal", "heading") => app_state_proxy.activate_horizontal_heading_mode().await,
+        ("vertical", "standby") => app_state_proxy.activate_vertical_standby_mode().await,
+        ("vertical", "tecs") => app_state_proxy.activate_vertical_TECS_mode().await,
         (_, _) => {
-            return Ok(StatusCode::NOT_IMPLEMENTED);
+            return Ok(StatusCode::BAD_REQUEST);
         }
-    }
+    };
+
+    match res {
+        Ok(_) => {
+            event!(
+                Level::INFO,
+                "Autopilot mode activated ({}, {})",
+                direction,
+                mode
+            );
+            return Ok(StatusCode::OK);
+        }
+        Err(e) => {
+            event!(Level::ERROR, "Cannot set autopilot mode: {:?}", e);
+            return Ok(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
 }

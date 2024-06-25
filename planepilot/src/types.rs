@@ -49,6 +49,29 @@ pub struct AutoPilotState {
     pub vertical_guidance: VerticalGuidance,
     pub horizontal_guidance: HorizontalGuidance,
 }
+
+impl AutoPilotState {
+    pub fn new() -> Self {
+        AutoPilotState {
+            are_we_flying: false,
+            vertical_guidance: VerticalGuidance {
+                vertical_mode: VerticalModes::Standby,
+                velocity_setpoint: 100.0,
+                velocity_standby: 80.0,
+                altitude_setpoint: 3000.0,
+                altitude_standby: 3500.0,
+                energy_error_integral: 0.0,
+                pitch_error_integral: 0.0,
+            },
+            horizontal_guidance: HorizontalGuidance {
+                horizontal_mode: HorizontalModes::Standby,
+                heading_setpoint: 90.0,
+                heading_standby: 120.0,
+                heading_error_integral: 0.0,
+            },
+        }
+    }
+}
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct VerticalGuidance {
     pub vertical_mode: VerticalModes,
@@ -84,24 +107,7 @@ pub enum HorizontalModes {
 impl AppState {
     pub fn new(rx: mpsc::Receiver<StateSignal>) -> Self {
         AppState {
-            auto_pilot_state: AutoPilotState {
-                are_we_flying: false,
-                vertical_guidance: VerticalGuidance {
-                    vertical_mode: VerticalModes::Standby,
-                    velocity_setpoint: 100.0,
-                    velocity_standby: 80.0,
-                    altitude_setpoint: 3000.0,
-                    altitude_standby: 3500.0,
-                    energy_error_integral: 0.0,
-                    pitch_error_integral: 0.0,
-                },
-                horizontal_guidance: HorizontalGuidance {
-                    horizontal_mode: HorizontalModes::Standby,
-                    heading_setpoint: 90.0,
-                    heading_standby: 120.0,
-                    heading_error_integral: 0.0,
-                },
-            },
+            auto_pilot_state: AutoPilotState::new(),
             plane_state: HashMap::new(),
             receiver: rx,
         }

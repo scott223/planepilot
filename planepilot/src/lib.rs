@@ -5,6 +5,7 @@ use futures::StreamExt;
 use futures_timer::Delay;
 use serde_json::{Number, Value};
 use tokio::{sync::mpsc, time::Duration};
+use tracing::{event, Level};
 use types::{
     AppState, AppStateProxy, AutoPilotState, CommandType, HorizontalModes, PlaneStateStruct,
     SpecificErrors, VerticalModes,
@@ -18,20 +19,28 @@ pub async fn run_app() -> anyhow::Result<()> {
     let (tx_state, rx_state) = mpsc::channel(8);
 
     // set up the app state and a proxy, that is linked through a channel. we can then clone and share the proxy with all the different procsesses
-    let _app_state: AppState = AppState::new(rx_state);
+    let app_state: AppState = AppState::new(rx_state);
     let app_state_proxy: AppStateProxy = AppStateProxy::new(tx_state);
 
     tokio::select! {
+        _ = app_state.process() => {
+
+        }
         _ = httpserver::run_server(app_state_proxy.clone()) => {
-            
+
         }
         _ = run_autopilot(app_state_proxy.clone()) => {
 
         }
         _ = run_terminal() => {
-            println!("terminal completed");
+
         }
     }
+
+    event!(
+        Level::INFO,
+        "Planepilot closed"
+    );
 
     Ok(())
 }
@@ -39,17 +48,30 @@ pub async fn run_app() -> anyhow::Result<()> {
 async fn run_autopilot(app_state_proxy: AppStateProxy) -> anyhow::Result<()> {
     const MILLISECONDS_PER_LOOP: u64 = 100;
 
+    let mut local_error_state: bool = true;
+
     loop {
+
         match update_state().await {
             Ok(plane_state) => {
-                app_state_proxy.set_flying(true).await?;
                 app_state_proxy.set_plane_state(plane_state).await?;
+                event!(Level::TRACE, "Plane state updated");
+
+                if !local_error_state {
+                    local_error_state = true;
+                    app_state_proxy.set_flying(true).await?;
+                    event!(Level::INFO, "Connection to planeconnector achieved and state updated");
+                }
+
             }
             Err(e) => {
-                app_state_proxy.set_flying(false).await?;
-                app_state_proxy.clear_plane_state().await?;
-
-                println!("Error while updating state: {}", e);
+                if local_error_state {
+                    local_error_state = false;
+                    app_state_proxy.set_flying(false).await?;
+                    app_state_proxy.clear_plane_state().await?;
+                    // todo clear autopilot state
+                    event!(Level::ERROR, "Error when updating state: {:?}", e);
+                }
             }
         };
 
@@ -303,8 +325,6 @@ async fn run_terminal() -> anyhow::Result<()> {
             maybe_event = reader.next() => {
                 match maybe_event {
                     Some(Ok(event)) => {
-                        println!("Event::{:?}\r", event);
-
                         if event == Event::Key(KeyCode::Char('q').into()) {
                             break;
                         }
