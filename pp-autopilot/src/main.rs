@@ -2,10 +2,7 @@ use tracing::{event, Level};
 
 #[tokio::main]
 async fn main() {
-    event!(
-        Level::INFO,
-        "Planepilot started",
-    );
+    event!(Level::INFO, "Planepilot started",);
 
     dotenv::dotenv().ok();
 
@@ -13,9 +10,9 @@ async fn main() {
         std::env::set_var("RUST_LOG", "info")
     }
 
-    planepilot::utils::start_tracing_subscriber();
+    pp-autopilot::utils::start_tracing_subscriber();
 
-    match planepilot::run_app().await {
+    match pp-autopilot::run_app().await {
         Ok(_) => {}
         Err(e) => {
             println!("Error: {}", e)

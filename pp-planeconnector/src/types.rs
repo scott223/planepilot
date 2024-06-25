@@ -4,7 +4,7 @@ use tokio::sync::{mpsc, oneshot};
 
 // Define the types of commands that can be sent to the AppState actor
 #[derive(Debug)]
-pub enum StateSignal {
+pub(super) enum StateSignal {
     ReturnPlaneState {
         result_sender: oneshot::Sender<HashMap<String, serde_json::value::Value>>,
     },
@@ -15,7 +15,7 @@ pub enum StateSignal {
 }
 
 // App state - has a receiver to receive signals and a trait to respond to it, no memory sharing
-pub struct AppState {
+pub(super) struct AppState {
     plane_state: HashMap<String, Value>,
     receiver: mpsc::Receiver<StateSignal>,
 }
@@ -51,7 +51,7 @@ impl AppState {
 
 // Define the proxy struct for interacting with the actor
 #[derive(Clone)]
-pub struct AppStateProxy {
+pub(super) struct AppStateProxy {
     pub state_sender: mpsc::Sender<StateSignal>,
     pub command_sender: mpsc::Sender<Command>,
 }
@@ -106,14 +106,14 @@ impl AppStateProxy {
 }
 
 // define possible UDP packet types, to be send to xplane
-pub enum PacketType {
+pub(super) enum PacketType {
     Data,
     PREL,
 }
 
 // Define a command to be sent to xplane
 #[derive(Debug)]
-pub struct Command {
+pub(super) struct Command {
     command_type: CommandType,
     value: f64,
 }
@@ -159,7 +159,7 @@ impl Command {
 // Define the types of commands that can be sent to xplane
 
 #[derive(Debug, Clone, Copy)]
-pub enum CommandType {
+pub(super) enum CommandType {
     Throttle,
     Aileron,
     Elevator,

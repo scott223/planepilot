@@ -1,5 +1,5 @@
 [package]
-name = "dataserver"
+name = "pp-autopilot"
 version = "0.2.0"
 edition = "2021"
 authors = ["Scott Brugmans <scott.brugmans@gmail.com>"]
@@ -10,26 +10,24 @@ license = "MIT"
 
 [dependencies]
 dotenv = "0.15.0"
-chrono = { version = "0.4.37", features = ["serde"] }
-
-axum = { version = "0.7.5", features = ["http2", "macros"] }
-
 tokio = { version = "1.37.0", features = ["full"] }
-tokio-stream = { version = "0.1.15", default-features = false, features = [
-    "sync",
-] }
-futures = "0.3"
+tokio-util = "0.7.11"
 
+reqwest = { version = "0.12.4", features = ["json"] }
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.115"
-
-tower-http = { version = "0.5.2", features = ["trace", "cors",] }
+crossterm = {version = "0.27", features = ['events', 'event-stream'] }
 
 anyhow = "1.0.81"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+chrono = { version = "0.4.37", features = ["serde"] }
 
-sqlx = { version = "0.7.4", features = ["runtime-tokio-native-tls", "sqlite", "chrono"]}
+futures = "0.3"
+futures-timer = "3.0.3"
+
+axum = { version = "0.7.5", features = ["http2", "macros"] }
+tower-http = { version = "0.5.2", features = ["trace", "cors",] }
 
 [profile.release]
 lto = true          # Enable link-time optimization

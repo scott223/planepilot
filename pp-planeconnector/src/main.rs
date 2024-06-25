@@ -1,9 +1,9 @@
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
-    planeconnector::utils::start_tracing_subscriber();
+    pp-planeconnector::utils::start_tracing_subscriber();
 
-    match planeconnector::run_app().await {
+    match pp-planeconnector::run_app().await {
         Ok(()) => {}
         Err(e) => panic!("Error in main program: {}", e),
     }

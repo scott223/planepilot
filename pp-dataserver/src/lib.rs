@@ -4,21 +4,21 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use dataserver::{controller, utils};
 use tokio::sync::broadcast;
-
-use dotenv::dotenv;
 
 use sqlx::SqlitePool;
 use tracing::{event, Level};
 
 use tower_http::cors::{Any, CorsLayer};
 
-#[tokio::main]
-async fn main() {
-    dotenv().ok();
-    utils::trace::start_tracing_subscriber();
+pub mod controller;
+pub mod models;
+pub mod sse;
+pub mod utils;
 
+pub async fn run_app() -> anyhow::Result<()> {
+
+    
     let config = utils::Config::default();
     let db: SqlitePool = utils::db::create_and_migrate_db(&config).await;
 
@@ -64,6 +64,9 @@ async fn main() {
         .with_graceful_shutdown(utils::log::shutdown_signal())
         .await
         .expect("error serving app. exiting.");
+
+    Ok(())
+
 }
 
 // basic handler that responds with a static string

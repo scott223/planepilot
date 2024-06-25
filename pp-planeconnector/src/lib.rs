@@ -6,7 +6,7 @@ use futures::StreamExt;
 use futures_timer::Delay;
 use tokio::sync::mpsc;
 
-use crate::types::{AppState, AppStateProxy};
+use self::types::{AppState, AppStateProxy};
 
 pub mod httpserver;
 pub mod types;

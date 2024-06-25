@@ -8,8 +8,8 @@ use tokio::sync::mpsc;
 use anyhow::anyhow;
 use tracing::{event, Level};
 
-use crate::types::{AppStateProxy, Command, CommandType, PacketType};
-use crate::xplanedatamap::{data_map, DataIndex, DataType};
+use super::types::{AppStateProxy, Command, CommandType, PacketType};
+use super::xplanedatamap::{data_map, DataIndex, DataType};
 
 const FLOAT_LEN: usize = 4;
 const IP_ADRR: &str = "127.0.0.1";
@@ -18,7 +18,7 @@ const SENDING_PORT: &str = "49000";
 
 // Listens to mpsc channel if commands are received, and turn them into an UDP packet to send to xplane
 
-pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow::Result<()> {
+pub(super) async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow::Result<()> {
     let socket = UdpSocket::bind(IP_ADRR.to_owned() + ":49100")
         .await
         .map_err(|e| panic!("error: {:?}", e))
@@ -76,8 +76,7 @@ pub async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow:
 }
 
 // Listen to xplane UDP packets, and update the state accordingly
-
-pub async fn listen_to_xplane(app_state_proxy: AppStateProxy) -> anyhow::Result<()> {
+pub(super) async fn listen_to_xplane(app_state_proxy: AppStateProxy) -> anyhow::Result<()> {
     let socket = UdpSocket::bind(IP_ADRR.to_owned() + ":" + LISTENING_PORT).await?;
     let mut buf: [u8; 1024] = [0_u8; 1024];
 

@@ -15,7 +15,7 @@ use sqlx::{sqlite::SqliteRow, FromRow, Pool, Row, Sqlite};
 use tracing::{event, Level};
 use tokio::sync::broadcast;
 
-use crate::{models, utils::Config};
+use super::{models, utils::Config};
 
 /// Holds the full app state, mostly db, config and a tx for the SSE broadcasts
 #[derive(Debug, Clone)]

@@ -12,14 +12,13 @@ use axum::{
 use tower_http::cors::{Any, CorsLayer};
 use tracing::{event, Level};
 
-use crate::{
+use super::{
     types::{AppStateProxy, Command},
     utils,
 };
 
 // define the routes and attach the state proxy, and serve the server
-
-pub async fn run_server(app_state: AppStateProxy) {
+pub(super) async fn run_server(app_state: AppStateProxy) {
     let cors = CorsLayer::new()
         // allow `GET` and `POST` when accessing the resource
         .allow_methods([Method::GET, Method::POST])
@@ -55,7 +54,6 @@ pub async fn run_server(app_state: AppStateProxy) {
 }
 
 // basic handler that responds with a static string - can be used as a heart beat
-
 async fn root() -> &'static str {
     "Hello, World!"
 }
@@ -72,6 +70,7 @@ async fn send_command(
     State(app_state_proxy): State<AppStateProxy>,
     Json(payload): Json<SendCommand>,
 ) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    
     // create the command based on the incoming json
     let command: Command = match payload.command.as_str() {
         "aileron" => Command::new_aileron(payload.value),
@@ -94,14 +93,13 @@ async fn send_command(
 }
 
 // get the current state from the app and serve as a JSON
-pub async fn get_state(
+async fn get_state(
     State(app_state_proxy): State<AppStateProxy>,
 ) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     let state: HashMap<String, serde_json::Value> = app_state_proxy
         .get_state()
         .await
         .expect("error getting the state");
-
     
     Ok(Json(state))
 }

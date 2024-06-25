@@ -8,7 +8,7 @@ use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 
 #[derive(Debug)]
-pub enum SpecificErrors {
+pub(super) enum SpecificErrors {
     PlaneConnectorNotReachable,
     PlaneConnectorReturnedError,
     StateNotUpdatedRecently,
@@ -27,13 +27,13 @@ impl std::fmt::Display for SpecificErrors {
 }
 
 impl std::error::Error for SpecificErrors {}
-pub struct AppState {
+pub(super) struct AppState {
     receiver: mpsc::Receiver<StateSignal>,
     auto_pilot_state: AutoPilotState,
     plane_state: HashMap<String, Value>,
 }
 
-pub struct PlaneStateStruct {
+pub(super) struct PlaneStateStruct {
     pub v_ind: f64,
     pub altitude_msl: f64,
     pub roll: f64,
@@ -44,7 +44,7 @@ pub struct PlaneStateStruct {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct AutoPilotState {
+pub(super) struct AutoPilotState {
     pub are_we_flying: bool,
     pub vertical_guidance: VerticalGuidance,
     pub horizontal_guidance: HorizontalGuidance,
@@ -255,7 +255,7 @@ impl AppState {
     }
 }
 
-pub enum StateSignal {
+pub(super) enum StateSignal {
     SetFlying {
         are_we_flying: bool,
         result_sender: oneshot::Sender<bool>,
@@ -327,7 +327,7 @@ pub enum StateSignal {
 }
 
 #[derive(Clone)]
-pub struct AppStateProxy {
+pub(super) struct AppStateProxy {
     pub state_sender: mpsc::Sender<StateSignal>,
 }
 

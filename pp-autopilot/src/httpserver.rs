@@ -8,10 +8,10 @@ use axum::{
 use tower_http::cors::{Any, CorsLayer};
 use tracing::{event, Level};
 
-use crate::{types::AppStateProxy, utils};
+use super::{types::AppStateProxy, utils};
 
 // define the routes and attach the state proxy, and serve the server
-pub async fn run_server(app_state_proxy: AppStateProxy) {
+pub(super) async fn run_server(app_state_proxy: AppStateProxy) {
     let cors = CorsLayer::new()
         // allow `GET` and `POST` when accessing the resource
         .allow_methods([Method::GET, Method::POST])
@@ -54,7 +54,7 @@ async fn root() -> &'static str {
 }
 
 // get the current autopilot state from the app and serve as a JSON
-pub async fn get_autopilot_state(
+async fn get_autopilot_state(
     State(app_state_proxy): State<AppStateProxy>,
 ) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     let state: crate::types::AutoPilotState = app_state_proxy
