@@ -10,9 +10,9 @@ async fn main() {
         std::env::set_var("RUST_LOG", "info")
     }
 
-    pp-autopilot::utils::start_tracing_subscriber();
+    pp_autopilot::utils::start_tracing_subscriber();
 
-    match pp-autopilot::run_app().await {
+    match pp_autopilot::run_app().await {
         Ok(_) => {}
         Err(e) => {
             println!("Error: {}", e)

@@ -1,5 +1,5 @@
 [package]
-name = "pp-dataserver"
+name = "pp_dataserver"
 version = "0.2.0"
 edition = "2021"
 authors = ["Scott Brugmans <scott.brugmans@gmail.com>"]
