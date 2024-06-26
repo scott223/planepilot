@@ -1,9 +1,5 @@
 use std::time::Duration;
 
-use crossterm::event::{Event, EventStream, KeyCode};
-
-use futures::StreamExt;
-use futures_timer::Delay;
 use tokio::sync::mpsc;
 
 use self::types::{AppState, AppStateProxy};
@@ -44,32 +40,27 @@ pub async fn run_app() -> anyhow::Result<()> {
 }
 
 async fn share_state(app_state_proxy: AppStateProxy) -> anyhow::Result<()> {
-
     let client = reqwest::Client::new();
 
     loop {
-
         let state = app_state_proxy.get_state().await?;
 
         if state.contains_key("last_updated_timestamp") {
-
             let json = &serde_json::json!({
                     "plane_state": state,
             });
 
             let _res = match client
-            .post("http://localhost:3000/api/v1/state")
-            .json(json)
-            .send()
-            .await
+                .post("http://localhost:3000/api/v1/state")
+                .json(json)
+                .send()
+                .await
             {
-                Ok(_res) => { },
+                Ok(_res) => {}
                 Err(e) => return Err(e.into()),
             };
-            
         }
 
         let _ = tokio::time::sleep(Duration::from_millis(500)).await;
-
     }
 }

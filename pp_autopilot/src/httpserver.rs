@@ -68,7 +68,7 @@ async fn get_autopilot_state(
 }
 
 async fn switch_key(
-    Path(key): Path<(String)>,
+    Path(key): Path<String>,
     State(app_state_proxy): State<AppStateProxy>,
 ) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     let res = match key.as_str() {

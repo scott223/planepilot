@@ -70,7 +70,6 @@ async fn send_command(
     State(app_state_proxy): State<AppStateProxy>,
     Json(payload): Json<SendCommand>,
 ) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    
     // create the command based on the incoming json
     let command: Command = match payload.command.as_str() {
         "aileron" => Command::new_aileron(payload.value),
@@ -100,6 +99,6 @@ async fn get_state(
         .get_state()
         .await
         .expect("error getting the state");
-    
+
     Ok(Json(state))
 }

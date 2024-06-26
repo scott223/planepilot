@@ -29,7 +29,7 @@ async fn main() {
 }
 
 // listents to terminal inputs, and breaks on "q"
-async fn run_terminal() -> Result<(),()> {
+async fn run_terminal() -> Result<(), ()> {
     let mut reader = EventStream::new();
 
     loop {
