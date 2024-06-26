@@ -51,7 +51,7 @@ pub async fn run_app() -> anyhow::Result<()> {
 
     event!(
         Level::INFO,
-        "pp_server started, listening on address {:?}",
+        "pp_dataserver started, listening on address {:?}",
         listener
             .local_addr()
             .expect("error getting local addr. exiting.")

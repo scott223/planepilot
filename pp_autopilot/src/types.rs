@@ -163,12 +163,16 @@ impl AppState {
                     standby_heading,
                     result_sender,
                 } => {
-                    self.auto_pilot_state.horizontal_guidance.heading_standby = standby_heading;
+                    self.auto_pilot_state.horizontal_guidance.heading_standby = standby_heading.clamp(0., 359.9);
                     let _ = result_sender.send(true);
                 }
                 StateSignal::ActivateStandbyHeading { result_sender } => {
+                    let temp = self.auto_pilot_state.horizontal_guidance.heading_setpoint;
+
                     self.auto_pilot_state.horizontal_guidance.heading_setpoint =
                         self.auto_pilot_state.horizontal_guidance.heading_standby;
+
+                    self.auto_pilot_state.horizontal_guidance.heading_standby = temp;
                     let _ = result_sender.send(true);
                 }
                 StateSignal::SetHorizontalGuidanceToStandbyMode { result_sender } => {
@@ -202,24 +206,33 @@ impl AppState {
                     standby_velocity,
                     result_sender,
                 } => {
-                    self.auto_pilot_state.vertical_guidance.velocity_standby = standby_velocity;
+                    self.auto_pilot_state.vertical_guidance.velocity_standby = standby_velocity.clamp(0.0, 180.0);
                     let _ = result_sender.send(true);
                 }
                 StateSignal::ActivateStandbyVelocity { result_sender } => {
+                    let temp = self.auto_pilot_state.vertical_guidance.velocity_setpoint;
+
                     self.auto_pilot_state.vertical_guidance.velocity_setpoint =
                         self.auto_pilot_state.vertical_guidance.velocity_standby;
+
+                    self.auto_pilot_state.vertical_guidance.velocity_standby = temp;
+
                     let _ = result_sender.send(true);
                 }
                 StateSignal::SetStandbyAltitude {
                     standby_altitude,
                     result_sender,
                 } => {
-                    self.auto_pilot_state.vertical_guidance.altitude_standby = standby_altitude;
+                    self.auto_pilot_state.vertical_guidance.altitude_standby = standby_altitude.clamp(0.0,25_000.0);
                     let _ = result_sender.send(true);
                 }
                 StateSignal::ActivateStandbyAltitude { result_sender } => {
+                    let temp = self.auto_pilot_state.vertical_guidance.altitude_setpoint;
+
                     self.auto_pilot_state.vertical_guidance.altitude_setpoint =
                         self.auto_pilot_state.vertical_guidance.altitude_standby;
+                    self.auto_pilot_state.vertical_guidance.altitude_standby = temp;
+
                     let _ = result_sender.send(true);
                 }
                 StateSignal::SetVerticalGuidanceToStandbyMode { result_sender } => {
@@ -592,7 +605,7 @@ impl AppStateProxy {
         }
     }
 
-    pub async fn activate_alititude_setpoint(&self) -> anyhow::Result<()> {
+    pub async fn activate_altitude_setpoint(&self) -> anyhow::Result<()> {
         let (result_sender, result_receiver) = oneshot::channel();
         self.state_sender
             .send(StateSignal::ActivateStandbyAltitude {

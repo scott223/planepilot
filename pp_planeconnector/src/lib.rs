@@ -36,38 +36,40 @@ pub async fn run_app() -> anyhow::Result<()> {
 
         // process that runs an http server, to share state and receive commands from the autopilot
         _ = httpserver::run_server(app_state_proxy.clone()) => { }
+
+        _ = share_state(app_state_proxy.clone()) => { }
     }
 
     Ok(())
 }
 
-// listents to terminal inputs, and breaks on "q"
+async fn share_state(app_state_proxy: AppStateProxy) -> anyhow::Result<()> {
 
-async fn run_terminal() -> anyhow::Result<()> {
-    let mut reader = EventStream::new();
+    let client = reqwest::Client::new();
 
     loop {
-        let delay = Delay::new(Duration::from_millis(1_000));
 
-        tokio::select! {
-            _ = delay => {
-                //println!(".\r");
-            },
-            maybe_event = reader.next() => {
-                match maybe_event {
-                    Some(Ok(event)) => {
-                        println!("Event::{:?}\r", event);
+        let state = app_state_proxy.get_state().await?;
 
-                        if event == Event::Key(KeyCode::Char('q').into()) {
-                            break;
-                        }
-                    }
-                    Some(Err(e)) => println!("Error: {:?}\r", e),
-                    None => break,
-                }
-            }
-        };
+        if state.contains_key("last_updated_timestamp") {
+
+            let json = &serde_json::json!({
+                    "plane_state": state,
+            });
+
+            let _res = match client
+            .post("http://localhost:3000/api/v1/state")
+            .json(json)
+            .send()
+            .await
+            {
+                Ok(_res) => { },
+                Err(e) => return Err(e.into()),
+            };
+            
+        }
+
+        let _ = tokio::time::sleep(Duration::from_millis(500)).await;
+
     }
-
-    Ok(())
 }

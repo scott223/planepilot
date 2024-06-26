@@ -21,8 +21,10 @@ pub(super) async fn run_server(app_state_proxy: AppStateProxy) {
     // build our application with the routes
     let app: Router = Router::new()
         .route("/", get(root))
-        .route("/api/v1/state", get(get_autopilot_state))
+        .route("/api/v1/autopilot_state", get(get_autopilot_state))
         .route("/api/v1/activate/:direction/:mode", get(activate_mode))
+        .route("/api/v1/set/:key/:value", get(set_key))
+        .route("/api/v1/switch/:key", get(switch_key))
         .layer(utils::return_trace_layer())
         .layer(cors)
         .with_state(app_state_proxy);
@@ -65,6 +67,65 @@ async fn get_autopilot_state(
     Ok(Json(state))
 }
 
+async fn switch_key(
+    Path(key): Path<(String)>,
+    State(app_state_proxy): State<AppStateProxy>,
+) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let res = match key.as_str() {
+        "heading" => app_state_proxy.activate_heading_setpoint().await,
+        "altitude" => app_state_proxy.activate_altitude_setpoint().await,
+        "velocity" => app_state_proxy.activate_velocity_setpoint().await,
+        _ => {
+            return Ok(StatusCode::BAD_REQUEST);
+        }
+    };
+
+    match res {
+        Ok(_) => {
+            event!(
+                Level::INFO,
+                "Activated value for {}",
+                key
+            );
+            return Ok(StatusCode::OK);
+        }
+        Err(e) => {
+            event!(Level::ERROR, "Cannot activate value for: {:?}", e);
+            return Ok(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+}
+
+async fn set_key(
+    Path((key, value)): Path<(String, usize)>,
+    State(app_state_proxy): State<AppStateProxy>,
+) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let res = match (key.as_str(), value) {
+        ("heading", _) => app_state_proxy.set_heading_standby(value as f64).await,
+        ("altitude", _) => app_state_proxy.set_altitude_standby(value as f64).await,
+        ("velocity", _) => app_state_proxy.set_velocity_standby(value as f64).await,
+        (_, _) => {
+            return Ok(StatusCode::BAD_REQUEST);
+        }
+    };
+
+    match res {
+        Ok(_) => {
+            event!(
+                Level::INFO,
+                "Standy value set ({}, {})",
+                key,
+                value
+            );
+            return Ok(StatusCode::OK);
+        }
+        Err(e) => {
+            event!(Level::ERROR, "Cannot set value: {:?}", e);
+            return Ok(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+}
+
 async fn activate_mode(
     Path((direction, mode)): Path<(String, String)>,
     State(app_state_proxy): State<AppStateProxy>,
@@ -96,3 +157,4 @@ async fn activate_mode(
         }
     };
 }
+

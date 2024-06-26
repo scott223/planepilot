@@ -1,4 +1,3 @@
-
 use crossterm::event::{Event, EventStream, KeyCode};
 
 use futures::StreamExt;
@@ -30,7 +29,6 @@ async fn main() {
 }
 
 // listents to terminal inputs, and breaks on "q"
-
 async fn run_terminal() -> Result<(),()> {
     let mut reader = EventStream::new();
 
@@ -44,7 +42,6 @@ async fn run_terminal() -> Result<(),()> {
             maybe_event = reader.next() => {
                 match maybe_event {
                     Some(Ok(event)) => {
-                        println!("Event::{:?}\r", event);
 
                         if event == Event::Key(KeyCode::Char('q').into()) {
                             break;

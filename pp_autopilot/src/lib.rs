@@ -1,12 +1,9 @@
 use std::collections::HashMap;
 
-use crossterm::event::{Event, EventStream, KeyCode};
-use futures::StreamExt;
-use futures_timer::Delay;
 use serde_json::{Number, Value};
 use tokio::{sync::mpsc, time::Duration};
 use tracing::{event, Level};
-use types::{AppState, AppStateProxy, CommandType, PlaneStateStruct, SpecificErrors};
+use types::*;
 
 pub mod horizontalguidance;
 pub mod httpserver;
@@ -132,32 +129,6 @@ async fn send_command(
     };
 }
 
-async fn run_terminal() -> anyhow::Result<()> {
-    let mut reader = EventStream::new();
-
-    loop {
-        let delay = Delay::new(Duration::from_millis(1_000));
-
-        tokio::select! {
-            _ = delay => {
-                //println!(".\r");
-            },
-            maybe_event = reader.next() => {
-                match maybe_event {
-                    Some(Ok(event)) => {
-                        if event == Event::Key(KeyCode::Char('q').into()) {
-                            break;
-                        }
-                    }
-                    Some(Err(e)) => println!("Error: {:?}\r", e),
-                    None => break,
-                }
-            }
-        };
-    }
-
-    Ok(())
-}
 
 async fn update_state() -> anyhow::Result<HashMap<String, Value>> {
     let res = match reqwest::get("http://localhost:3100/api/v1/state").await {
