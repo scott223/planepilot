@@ -17,7 +17,6 @@ pub mod sse;
 pub mod utils;
 
 pub async fn run_app() -> anyhow::Result<()> {
-
     
     let config = utils::Config::default();
     let db: SqlitePool = utils::db::create_and_migrate_db(&config).await;
@@ -31,8 +30,6 @@ pub async fn run_app() -> anyhow::Result<()> {
         .allow_origin(Any);
 
     let app_state: controller::AppState = controller::AppState { db, config, tx };
-
-    utils::log::logo();
 
     // build our application with the routes
     let app: Router = Router::new()
@@ -54,7 +51,7 @@ pub async fn run_app() -> anyhow::Result<()> {
 
     event!(
         Level::INFO,
-        "Server started to listen on address {:?}",
+        "pp_server started, listening on address {:?}",
         listener
             .local_addr()
             .expect("error getting local addr. exiting.")

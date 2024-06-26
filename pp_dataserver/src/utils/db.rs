@@ -12,7 +12,7 @@ pub async fn create_and_migrate_db(config: &super::Config) -> SqlitePool {
             Err(error) => panic!("error: {}", error),
         }
     } else {
-        println!("Database already exists");
+        event!(Level::INFO, "Database exists");
     }
 
     let db = SqlitePool::connect(&config.database_url)

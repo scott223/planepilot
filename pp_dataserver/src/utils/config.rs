@@ -11,9 +11,9 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         let database_url: String =
-            env::var("DATABASE_URL").expect("cannot find DATABASE_URL in .env. exiting.");
+            env::var("DATABASE_URL").unwrap_or("./pp_dataserver/sqlite.db".to_string());
         let migration_path: String =
-            env::var("MIGRATION_PATH").expect("cannot find MIGRATION_PATH in .env");
+            env::var("MIGRATION_PATH").unwrap_or("./pp_dataserver/migrations".to_string());
         Config {
             database_url,
             migration_path,

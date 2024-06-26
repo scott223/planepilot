@@ -36,7 +36,7 @@ pub(super) async fn run_server(app_state_proxy: AppStateProxy) {
 
     event!(
         Level::INFO,
-        "Server started to listen on address {:?}",
+        "pp_autopilot server started to listen on address {:?}",
         listener
             .local_addr()
             .expect("Error getting local address. Exiting.")

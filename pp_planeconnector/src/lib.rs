@@ -26,20 +26,16 @@ pub async fn run_app() -> anyhow::Result<()> {
     tokio::select! {
 
         // process that runs on the app state, that will listen to the signals from the proxy and processes these
-        _ = app_state.process() => { println!("1"); }
+        _ = app_state.process() => { }
 
         // process that listens to xplane udp packets, and updatates the state accordingly
-        _ = xplaneudp::listen_to_xplane(app_state_proxy.clone()) => {println!("2");  }
-
-        // process that runs an http server, to share state and receive commands from the autopilot
-        _ = httpserver::run_server(app_state_proxy.clone()) => { println!("3"); }
+        _ = xplaneudp::listen_to_xplane(app_state_proxy.clone()) => { }
 
         // process that listens to incomming commands (through the http server), and send them to xplane
-        _ = xplaneudp::listen_to_send_commands(rx_command) => { println!("4"); }
+        _ = xplaneudp::listen_to_send_commands(rx_command) => { }
 
-        // process that runs a terminal, that looks for input (eg "q" press)
-        // this is the process that will run to completion and then the tokio::select will cancel the rest
-        _ = run_terminal() => { println!("5"); }
+        // process that runs an http server, to share state and receive commands from the autopilot
+        _ = httpserver::run_server(app_state_proxy.clone()) => { }
     }
 
     Ok(())

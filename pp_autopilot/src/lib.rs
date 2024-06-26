@@ -22,18 +22,9 @@ pub async fn run_app() -> anyhow::Result<()> {
     let app_state_proxy: AppStateProxy = AppStateProxy::new(tx_state);
 
     tokio::select! {
-        _ = app_state.process() => {
-
-        }
-        _ = httpserver::run_server(app_state_proxy.clone()) => {
-
-        }
-        _ = run_autopilot(app_state_proxy.clone()) => {
-
-        }
-        _ = run_terminal() => {
-
-        }
+        _ = app_state.process() => { }
+        _ = run_autopilot(app_state_proxy.clone()) => { }
+        _ = httpserver::run_server(app_state_proxy.clone()) => { }
     }
 
     event!(Level::INFO, "Planepilot closed");
