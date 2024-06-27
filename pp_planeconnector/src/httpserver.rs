@@ -82,7 +82,7 @@ async fn send_command(
     };
 
     // send the message
-    match app_state_proxy.command_sender.send(command).await {
+    match app_state_proxy.send_command(command).await {
         Ok(_) => return Ok(StatusCode::OK),
         Err(e) => {
             event!(Level::ERROR, "Cannot send command: {:?}", e);

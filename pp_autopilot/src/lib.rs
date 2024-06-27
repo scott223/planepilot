@@ -54,8 +54,10 @@ async fn run_autopilot(app_state_proxy: AppStateProxy) -> anyhow::Result<()> {
                     local_error_state = false;
                     app_state_proxy.set_flying(false).await?;
                     app_state_proxy.clear_plane_state().await?;
-                    // todo clear autopilot state
-                    event!(Level::ERROR, "Error when updating state: {:?}", e);
+                    app_state_proxy.activate_vertical_standby_mode().await?;
+                    app_state_proxy.activate_horizontal_standby_mode().await?;
+
+                    event!(Level::ERROR, "Error when updating state so autopilot set to standby: {:?}", e);
                 }
             }
         };

@@ -34,8 +34,6 @@ pub(super) async fn run_server(app_state_proxy: AppStateProxy) {
         .await
         .expect("Cannot start listener. Exiting.");
 
-    println!("hey");
-
     event!(
         Level::INFO,
         "pp_autopilot server started to listen on address {:?}",

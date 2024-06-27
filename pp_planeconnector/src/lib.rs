@@ -33,13 +33,13 @@ pub async fn run_app() -> anyhow::Result<()> {
         // process that runs an http server, to share state and receive commands from the autopilot
         _ = httpserver::run_server(app_state_proxy.clone()) => { }
 
-        _ = share_state(app_state_proxy.clone()) => { }
+        _ = share_state_with_data_server(app_state_proxy.clone()) => { }
     }
 
     Ok(())
 }
 
-async fn share_state(app_state_proxy: AppStateProxy) -> anyhow::Result<()> {
+async fn share_state_with_data_server(app_state_proxy: AppStateProxy) -> anyhow::Result<()> {
     let client = reqwest::Client::new();
 
     loop {

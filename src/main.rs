@@ -1,9 +1,5 @@
 use crossterm::event::{Event, EventStream, KeyCode};
-
 use futures::StreamExt;
-use futures_timer::Delay;
-
-use tokio::time::Duration;
 
 #[tokio::main]
 async fn main() {
@@ -13,9 +9,20 @@ async fn main() {
         std::env::set_var("RUST_LOG", "INFO");
     }
 
+    if std::env::var("DATABASE_URL").is_err() {
+        std::env::set_var("DATABASE_URL", "./pp_dataserver/sqlite.db");
+    }
+
+    if std::env::var("MIGRATION_PATH").is_err() {
+        std::env::set_var("MIGRATION_PATH", "./pp_dataserver/migrations");
+    }
+
+
     tracing_subscriber::fmt::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
+
+    logo();
 
     tokio::select! {
         _ = pp_planeconnector::run_app() => { },
@@ -33,12 +40,7 @@ async fn run_terminal() -> Result<(), ()> {
     let mut reader = EventStream::new();
 
     loop {
-        let delay = Delay::new(Duration::from_millis(1_000));
-
         tokio::select! {
-            _ = delay => {
-                //println!(".\r");
-            },
             maybe_event = reader.next() => {
                 match maybe_event {
                     Some(Ok(event)) => {
@@ -55,4 +57,22 @@ async fn run_terminal() -> Result<(), ()> {
     }
 
     Ok(())
+}
+
+fn logo() -> () {
+    println!(
+        r"
+                                |
+            ____________________|____________________
+                           \  |   |  /
+                            '.#####.'
+                             /'#_#'\
+                           O'   O   'O 
+__________.__                      __________.__.__          __   
+\______   |  | _____    ____   ____\______   |__|  |   _____/  |_ 
+ |     ___|  | \__  \  /    \_/ __ \|     ___|  |  |  /  _ \   __\
+ |    |   |  |__/ __ \|   |  \  ___/|    |   |  |  |_(  <_> |  |  
+ |____|   |____(____  |___|  /\___  |____|   |__|____/\____/|__|  
+                    \/     \/     \/                      v0.2                            
+    ");
 }

@@ -277,6 +277,7 @@ pub(super) enum StateSignal {
         plane_state: HashMap<String, Value>,
         result_sender: oneshot::Sender<bool>,
     },
+    #[allow(dead_code)]
     ReturnPlaneState {
         result_sender: oneshot::Sender<HashMap<String, Value>>,
     },
@@ -369,7 +370,7 @@ impl AppStateProxy {
     }
 
     // plane state
-
+    #[allow(dead_code)]
     pub async fn get_plane_state(&self) -> anyhow::Result<HashMap<String, Value>> {
         let (result_sender, result_receiver) = oneshot::channel();
 
