@@ -47,11 +47,11 @@ pub(super) async fn execute_vertical_guidance(
                 .add_to_energy_error_integral(energy_error * dt)
                 .await?;
 
-            let ke: f64 = 0.0010;
-            let ks = 0.0000001;
-            let thr_cruise = 0.48 + target_energy * ks;
+            let ke: f64 = auto_pilot_state.control_constants.tecs_energy_p;
+            let ks = auto_pilot_state.control_constants.tecs_cruise_throttle_slope;
+            let thr_cruise = auto_pilot_state.control_constants.tecs_cruise_throttle_base + target_energy * ks;
 
-            let ki = 0.0001;
+            let ki = auto_pilot_state.control_constants.tecs_energy_i;
 
             let throttle = (ke * energy_error
                 + thr_cruise
@@ -67,7 +67,7 @@ pub(super) async fn execute_vertical_guidance(
 
             // pitch
 
-            let kpitch: f64 = -1.5;
+            let kpitch: f64 = auto_pilot_state.control_constants.pitch_error_p;
 
             let target_pitch: f64 = ((auto_pilot_state.vertical_guidance.velocity_setpoint
                 - plane_state_struct.v_ind)
@@ -79,14 +79,14 @@ pub(super) async fn execute_vertical_guidance(
                 .add_to_pitch_error_integral(pitch_error * dt)
                 .await?;
 
-            let kpr = 0.3;
+            let kpr = auto_pilot_state.control_constants.pitch_rate_error_p;
 
             let target_pitch_rate = (pitch_error * kpr).clamp(-MAX_PITCH_RATE, MAX_PITCH_RATE);
             let pitch_rate_error = target_pitch_rate - plane_state_struct.pitch_rate;
 
-            let kelevator = 0.15;
-            let kdelevator = 0.015;
-            let kielevator: f64 = 0.0015;
+            let kelevator = auto_pilot_state.control_constants.elevator_p;
+            let kdelevator = auto_pilot_state.control_constants.elevator_d;
+            let kielevator: f64 = auto_pilot_state.control_constants.elevator_i;
 
             let elevator = (kelevator * pitch_error
                 + kdelevator * pitch_rate_error

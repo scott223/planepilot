@@ -19,8 +19,8 @@ pub(super) async fn execute_horizontal_guidance(
             println!("Horizontal mode standby, no autopilot input for ailerons");
         }
         HorizontalModes::Heading => {
-            let kp: f64 = 0.4;
-            let kd: f64 = 0.2;
+            let kp: f64 = auto_pilot_state.control_constants.heading_error_p;
+            let kd: f64 = auto_pilot_state.control_constants.heading_roll_error_d;
 
             let heading_error: f64 =
                 auto_pilot_state.horizontal_guidance.heading_setpoint - plane_state_struct.heading;
@@ -29,10 +29,10 @@ pub(super) async fn execute_horizontal_guidance(
             let roll_error: f64 = target_roll_angle - plane_state_struct.roll;
             let target_roll_rate: f64 = (kd * roll_error).clamp(-MAX_ROLL_RATE, MAX_ROLL_RATE);
             let roll_rate_error: f64 = target_roll_rate - plane_state_struct.roll_rate;
-
-            let p: f64 = 0.01;
-            let d: f64 = 0.01;
-            let i: f64 = 0.001;
+            
+            let p: f64 = auto_pilot_state.control_constants.heading_p;
+            let d: f64 = auto_pilot_state.control_constants.heading_d;
+            let i: f64 = auto_pilot_state.control_constants.heading_i;
 
             app_state_proxy
                 .add_to_heading_error_integral(heading_error * dt)
@@ -51,8 +51,8 @@ pub(super) async fn execute_horizontal_guidance(
             send_command(&client, CommandType::Aileron, aileron).await?;
         }
         HorizontalModes::WingsLevel => {
-            let p: f64 = 0.01;
-            let d: f64 = 0.01;
+            let p: f64 = auto_pilot_state.control_constants.heading_p;
+            let d: f64 = auto_pilot_state.control_constants.heading_d;
 
             let aileron: f64 = (-(plane_state_struct.roll * p + plane_state_struct.roll_rate * d))
                 .clamp(-MAX_AILERON, MAX_AILERON);

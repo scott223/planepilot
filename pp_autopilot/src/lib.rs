@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
 use serde_json::{Number, Value};
 use tokio::{sync::mpsc, time::Duration};
@@ -30,7 +30,8 @@ pub async fn run_app() -> anyhow::Result<()> {
 }
 
 async fn run_autopilot(app_state_proxy: AppStateProxy) -> anyhow::Result<()> {
-    const MILLISECONDS_PER_LOOP: u64 = 100;
+    const MILLISECONDS_PER_LOOP: u64 = 200;
+
 
     let mut local_error_state: bool = true;
 
@@ -64,6 +65,9 @@ async fn run_autopilot(app_state_proxy: AppStateProxy) -> anyhow::Result<()> {
 
         let auto_pilot_state: types::AutoPilotState =
             app_state_proxy.get_auto_pilot_state().await?;
+
+        let path = Path::new("constants.json");        
+        let _ = auto_pilot_state.control_constants.to_file(path);
 
         if auto_pilot_state.are_we_flying {
             let client: reqwest::Client = reqwest::Client::new();

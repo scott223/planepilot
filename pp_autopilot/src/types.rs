@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::Read;
 
 use anyhow::anyhow;
 use serde::Deserialize;
@@ -48,6 +50,62 @@ pub(super) struct AutoPilotState {
     pub are_we_flying: bool,
     pub vertical_guidance: VerticalGuidance,
     pub horizontal_guidance: HorizontalGuidance,
+    pub control_constants: AutoPilotConstants,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub(super) struct AutoPilotConstants {
+    pub heading_error_p: f64,
+    pub heading_roll_error_d: f64,
+    pub heading_p: f64,
+    pub heading_d: f64,
+    pub heading_i: f64,
+    pub tecs_cruise_throttle_slope: f64,
+    pub tecs_cruise_throttle_base: f64,
+    pub tecs_energy_p: f64,
+    pub tecs_energy_i:f64,
+    pub pitch_error_p:f64,
+    pub pitch_rate_error_p: f64,
+    pub elevator_p: f64,
+    pub elevator_d: f64,
+    pub elevator_i: f64,
+}
+
+impl AutoPilotConstants {
+    pub fn new() -> Self {
+        AutoPilotConstants {
+            heading_error_p: 0.4,
+            heading_roll_error_d: 0.2,
+            heading_p: 0.01,
+            heading_d: 0.01,
+            heading_i: 0.001,
+            tecs_cruise_throttle_slope: 0.0000001,
+            tecs_cruise_throttle_base: 0.48,
+            tecs_energy_p: 0.001,
+            tecs_energy_i: 0.001,
+            pitch_error_p: -1.5,
+            pitch_rate_error_p: 0.3,
+            elevator_p: 0.15,
+            elevator_d: 0.015,
+            elevator_i: 0.0015,
+        }
+    }
+
+    pub fn from_file(&self, file: &std::path::Path) -> Self {
+        let mut file = File::open(file).unwrap();
+        let mut data = String::new();
+        file.read_to_string(&mut data).unwrap();
+    
+        let json: AutoPilotConstants = serde_json::from_str(&data).unwrap();
+        json
+    }
+
+    pub fn to_file(&self, file: &std::path::Path) -> anyhow::Result<()> {
+        let file = std::fs::File::open(file)?;
+        let file = std::io::BufWriter::new(file);
+        serde_json::to_writer(file, self)?;
+        Ok(())
+   }
 }
 
 impl AutoPilotState {
@@ -69,6 +127,7 @@ impl AutoPilotState {
                 heading_standby: 120.0,
                 heading_error_integral: 0.0,
             },
+            control_constants: AutoPilotConstants::new(),
         }
     }
 }
