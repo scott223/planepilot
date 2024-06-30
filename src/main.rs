@@ -17,7 +17,6 @@ async fn main() {
         std::env::set_var("MIGRATION_PATH", "./pp_dataserver/migrations");
     }
 
-
     tracing_subscriber::fmt::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
