@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
+use std::io::Write;
+use std::path::Path;
 
 use anyhow::anyhow;
 use serde::Deserialize;
@@ -91,8 +93,9 @@ impl AutoPilotConstants {
         }
     }
 
-    pub fn from_file(&self, file: &std::path::Path) -> Self {
-        let mut file = File::open(file).unwrap();
+    pub fn from_file() -> Self {
+        let path = Path::new("./constants.json");  
+        let mut file = File::open(path).unwrap();
         let mut data = String::new();
         file.read_to_string(&mut data).unwrap();
     
@@ -100,10 +103,14 @@ impl AutoPilotConstants {
         json
     }
 
-    pub fn to_file(&self, file: &std::path::Path) -> anyhow::Result<()> {
-        let file = std::fs::File::open(file)?;
-        let file = std::io::BufWriter::new(file);
-        serde_json::to_writer(file, self)?;
+    pub fn _to_file(&self) -> anyhow::Result<()> {
+        let path = Path::new("./constants.json"); 
+        let mut file = std::fs::File::create(path)?;
+        let list_as_json = serde_json::to_string(self).unwrap();
+ 
+        file.write_all(list_as_json.as_bytes())
+            .expect("Cannot write to the file!");
+        
         Ok(())
    }
 }
@@ -322,6 +329,10 @@ impl AppState {
                     self.auto_pilot_state.vertical_guidance.pitch_error_integral += value;
                     let _ = result_sender.send(true);
                 }
+                StateSignal::RefreshAutoPilotConstants { result_sender } => {
+                    self.auto_pilot_state.control_constants = AutoPilotConstants::from_file();
+                    let _ = result_sender.send(true);
+                }
             }
         }
     }
@@ -397,6 +408,9 @@ pub(super) enum StateSignal {
         value: f64,
         result_sender: oneshot::Sender<bool>,
     },
+    RefreshAutoPilotConstants {
+        result_sender: oneshot::Sender<bool>,
+    }
 }
 
 #[derive(Clone)]
@@ -407,6 +421,22 @@ pub(super) struct AppStateProxy {
 impl AppStateProxy {
     pub fn new(tx: mpsc::Sender<StateSignal>) -> Self {
         AppStateProxy { state_sender: tx }
+    }
+
+    pub async fn refresh_autopilot_constants(&self) -> anyhow::Result<()> {
+        let (result_sender, result_receiver) = oneshot::channel();
+
+        self.state_sender
+            .send(StateSignal::RefreshAutoPilotConstants { result_sender })
+            .await?;
+
+        match result_receiver
+            .await
+            .unwrap_or_else(|_| panic!("Failed to receive result from auto pilot state"))
+        {
+            true => return Ok(()),
+            _ => return Err(anyhow!("Error with receiving result from autopilot state")),
+        }        
     }
 
     pub async fn set_flying(&self, are_we_flying: bool) -> anyhow::Result<()> {

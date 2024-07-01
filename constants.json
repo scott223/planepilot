@@ -1,0 +1,16 @@
+{
+    "heading_error_p":0.4,
+    "heading_roll_error_d":0.2,
+    "heading_p":0.01,
+    "heading_d":0.01,
+    "heading_i":0.001,
+    "tecs_cruise_throttle_slope":0.0000001,
+    "tecs_cruise_throttle_base":0.48,
+    "tecs_energy_p":0.001,
+    "tecs_energy_i":0.001,
+    "pitch_error_p":-1.5,
+    "pitch_rate_error_p":0.3,
+    "elevator_p":0.15,
+    "elevator_d":0.015,
+    "elevator_i":0.0015
+ }
