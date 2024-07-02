@@ -53,6 +53,38 @@ pub(super) struct AutoPilotState {
     pub vertical_guidance: VerticalGuidance,
     pub horizontal_guidance: HorizontalGuidance,
     pub control_constants: AutoPilotConstants,
+    pub horizontal_control_metrics: AutoPilotHorizontalMetrics,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub(super) struct AutoPilotHorizontalMetrics {
+    pub heading: f64,
+    pub heading_setpoint: f64,
+    pub heading_error: f64,
+    pub roll_angle:f64,
+    pub roll_angle_target: f64,
+    pub roll_angle_error: f64,
+    pub roll_angle_rate: f64,
+    pub roll_angle_rate_target: f64,
+    pub roll_angle_rate_error: f64,
+    pub aileron_setpoint: f64,
+}
+
+impl AutoPilotHorizontalMetrics {
+    fn new() -> Self {
+        AutoPilotHorizontalMetrics {
+            heading: 0.0,
+            heading_setpoint: 0.0,
+            heading_error: 0.0,
+            roll_angle: 0.0,
+            roll_angle_target: 0.0,
+            roll_angle_error: 0.0,
+            roll_angle_rate: 0.0,
+            roll_angle_rate_target: 0.0,
+            roll_angle_rate_error: 0.0,
+            aileron_setpoint: 0.0,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -134,6 +166,7 @@ impl AutoPilotState {
                 heading_standby: 120.0,
                 heading_error_integral: 0.0,
             },
+            horizontal_control_metrics: AutoPilotHorizontalMetrics::new(),
             control_constants: AutoPilotConstants::new(),
         }
     }
@@ -333,6 +366,10 @@ impl AppState {
                     self.auto_pilot_state.control_constants = AutoPilotConstants::from_file();
                     let _ = result_sender.send(true);
                 }
+                StateSignal::UpdateHorizontalAutoPilotMetrics { metrics, result_sender } => {
+                    self.auto_pilot_state.horizontal_control_metrics = metrics;
+                    let _ = result_sender.send(true);
+                }
             }
         }
     }
@@ -409,6 +446,10 @@ pub(super) enum StateSignal {
         result_sender: oneshot::Sender<bool>,
     },
     RefreshAutoPilotConstants {
+        result_sender: oneshot::Sender<bool>,
+    },
+    UpdateHorizontalAutoPilotMetrics {
+        metrics: AutoPilotHorizontalMetrics,
         result_sender: oneshot::Sender<bool>,
     }
 }
@@ -774,6 +815,22 @@ impl AppStateProxy {
                 value,
                 result_sender,
             })
+            .await?;
+
+        match result_receiver
+            .await
+            .unwrap_or_else(|_| panic!("Failed to receive result from auto pilot state"))
+        {
+            true => return Ok(()),
+            _ => return Err(anyhow!("Error with receiving result from autopilot state")),
+        }
+    }
+
+    pub async fn update_horizontal_control_metrics(&self, metrics: AutoPilotHorizontalMetrics) -> anyhow::Result<()> {
+        let (result_sender, result_receiver) = oneshot::channel();
+
+        self.state_sender
+            .send(StateSignal::UpdateHorizontalAutoPilotMetrics { metrics, result_sender })
             .await?;
 
         match result_receiver

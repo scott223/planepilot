@@ -1,3 +1,5 @@
+use crate::AutoPilotHorizontalMetrics;
+
 use super::{
     send_command,
     types::{CommandType, HorizontalModes},
@@ -43,11 +45,25 @@ pub(super) async fn execute_horizontal_guidance(
                 + auto_pilot_state.horizontal_guidance.heading_error_integral * i)
                 .clamp(-MAX_AILERON, MAX_AILERON);
 
-            println!(
+            tracing::event!(tracing::Level::TRACE,
                 "Heading mode - heading [deg]: {:.4}, heading error [deg]: {:.4}, target_roll_angle [deg]: {:.4}, roll [deg]: {:.4}, roll_error: {:.4}, target roll rate [deg]: {:.4}, roll rate [deg/s]: {:.4}, roll_rate_error: {:.4}, aileron [0-1]: {:.4}",
                 plane_state_struct.heading, heading_error, target_roll_angle, plane_state_struct.roll, roll_error, target_roll_rate, plane_state_struct.roll_rate, roll_rate_error, aileron
             );
 
+            let horizontal_metrics = AutoPilotHorizontalMetrics {
+                heading: plane_state_struct.heading,
+                heading_setpoint: auto_pilot_state.horizontal_guidance.heading_setpoint,
+                heading_error: heading_error,
+                roll_angle: plane_state_struct.roll,
+                roll_angle_target: target_roll_angle,
+                roll_angle_error: roll_error,
+                roll_angle_rate: plane_state_struct.roll_rate,
+                roll_angle_rate_target: target_roll_rate,
+                roll_angle_rate_error: roll_rate_error,
+                aileron_setpoint: aileron,
+            };
+
+            app_state_proxy.update_horizontal_control_metrics(horizontal_metrics).await?;
             send_command(&client, CommandType::Aileron, aileron).await?;
         }
         HorizontalModes::WingsLevel => {
