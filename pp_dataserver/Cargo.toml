@@ -31,6 +31,9 @@ tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 
 sqlx = { version = "0.7.4", features = ["runtime-tokio-native-tls", "sqlite", "chrono"]}
 
+itertools = "0.13.0"
+reqwest = "0.12.5"
+
 [profile.release]
 lto = true          # Enable link-time optimization
 codegen-units = 1   # Reduce number of codegen units to increase optimizations

@@ -61,6 +61,6 @@ async fn share_state_with_data_server(app_state_proxy: AppStateProxy) -> anyhow:
             };
         }
 
-        let _ = tokio::time::sleep(Duration::from_millis(500)).await;
+        let _ = tokio::time::sleep(Duration::from_millis(1000)).await;
     }
 }

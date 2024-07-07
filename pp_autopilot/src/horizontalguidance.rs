@@ -16,7 +16,7 @@ pub(super) async fn execute_horizontal_guidance(
 
     match auto_pilot_state.horizontal_guidance.horizontal_mode {
         HorizontalModes::Standby => {
-            println!("Horizontal mode standby, no autopilot input for ailerons");
+            //println!("Horizontal mode standby, no autopilot input for ailerons");
         }
         HorizontalModes::Heading => {
             let kp: f64 = 0.4;

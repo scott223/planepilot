@@ -19,7 +19,7 @@ function* getDataSaga({ payload: channel }: PayloadAction<number>) {
 function* getChannelsSaga() {
     try {
         // get the channels
-        const response: AxiosResponse<channelDataType[]> = yield axios.get(`http://localhost:3000/api/v1/channel`);
+        const response: AxiosResponse<channelDataType[]> = yield axios.get(`http://localhost:3000/api/v1/channels`);
         yield put(fetchChannelSuccess(response.data));
     } catch (error) {
         yield put(fetchChannelError(error as string));

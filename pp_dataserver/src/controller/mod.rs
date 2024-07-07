@@ -12,10 +12,12 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sqlx::{sqlite::SqliteRow, FromRow, Pool, Row, Sqlite};
 
-use tracing::{event, Level};
 use tokio::sync::broadcast;
+use tracing::{event, Level};
 
 use super::{models, utils::Config};
+
+use itertools::Itertools;
 
 /// Holds the full app state, mostly db, config and a tx for the SSE broadcasts
 #[derive(Debug, Clone)]
@@ -75,7 +77,7 @@ pub async fn get_all_data(
 
 /// Struct to add a full state at once
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct AddState {
     pub plane_state: HashMap<String, Value>,
 }
@@ -86,31 +88,45 @@ pub async fn add_state(
     State(app_state): State<AppState>,
     Json(payload): Json<AddState>,
 ) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    println!("i: {}", payload.plane_state.len());
+    let timestamp = chrono::Utc::now().timestamp_nanos_opt().unwrap();
 
-    let timestamp: chrono::DateTime<Utc> = chrono::Utc::now();
+    let mut line: String = "plane_state ".to_owned();
 
-    for (key, value) in payload.plane_state {
+    line.push_str(
+        &payload
+            .plane_state
+            .iter()
+            .filter(|(k, v)| v.is_number())
+            .map(|(k, v)| format!("{}={}", k, v.as_f64().unwrap()))
+            .join(","),
+    );
 
-        let data: AddData = AddData {
-            timestamp: Some(timestamp),
-            value: value.as_f64().unwrap(),
-            channel: key.clone(),
-        };
+    line.push_str(" ");
+    line.push_str(&timestamp.to_string());
 
-        let _result = add_single_data(data, &app_state)
-        .await
-        .map_err(|e| {
-            let error_response = serde_json::json!({
-                "status": "error",
-                "message": format!("Database error: { }", e),
-            });
-            event!(Level::ERROR, "Database error { }", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
-        });        
+    dbg!(line.clone());
 
-        event!(Level::DEBUG, "state added - key: {}, value: {}", key, value);
+    let params = [("bucket", "Planepilot")];
+    let client = reqwest::Client::new();
+    let res = client
+    .post("https://eu-central-1-1.aws.cloud2.influxdata.com/api/v2/write/?bucket=Planepilot")
+    .header(reqwest::header::AUTHORIZATION, "Token fNYYFLGey5QUItHsf98hMZqJiB9f_FjzJZlPqih3UfD1QlXRy2AA4MU4p3UnxCBWXx90_FMKvHWoEmMALiQ_ew==")
+    .body(line.to_string())
+    .send()
+    .await;
+
+    match res {
+        Ok(r) => {
+            println!("ok {:?}", r.text().await);
+        }
+        Err(e) => {
+            println! {"e: {}", e}
+        }
     }
+
+    //line += &timestamp.timestamp().to_string();
+
+    //dbg!(line);
 
     Ok(StatusCode::OK)
 }
@@ -118,7 +134,6 @@ pub async fn add_state(
 /// Function to actually add a single data item to the database
 
 pub async fn add_single_data(d: AddData, app_state: &AppState) -> anyhow::Result<()> {
-
     let _result = sqlx::query(
         "INSERT INTO datapoints (CreationDate, ChannelName, DataPointValue) VALUES (?, ?, ?)",
     )
@@ -143,17 +158,13 @@ pub struct AddData {
     pub channel: String,
 }
 
-
 /// Handle to process adding single data item
 
 pub async fn add_data(
     State(app_state): State<AppState>,
     Json(payload): Json<AddData>,
 ) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-
-    let _result = add_single_data(payload, &app_state)
-    .await
-    .map_err(|e| {
+    let _result = add_single_data(payload, &app_state).await.map_err(|e| {
         let error_response = serde_json::json!({
             "status": "error",
             "message": format!("Database error: { }", e),

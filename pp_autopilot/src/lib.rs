@@ -30,7 +30,7 @@ pub async fn run_app() -> anyhow::Result<()> {
 }
 
 async fn run_autopilot(app_state_proxy: AppStateProxy) -> anyhow::Result<()> {
-    const MILLISECONDS_PER_LOOP: u64 = 100;
+    const MILLISECONDS_PER_LOOP: u64 = 200;
 
     let mut local_error_state: bool = true;
 
@@ -57,7 +57,11 @@ async fn run_autopilot(app_state_proxy: AppStateProxy) -> anyhow::Result<()> {
                     app_state_proxy.activate_vertical_standby_mode().await?;
                     app_state_proxy.activate_horizontal_standby_mode().await?;
 
-                    event!(Level::ERROR, "Error when updating state so autopilot set to standby: {:?}", e);
+                    event!(
+                        Level::ERROR,
+                        "Error when updating state so autopilot set to standby: {:?}",
+                        e
+                    );
                 }
             }
         };
@@ -130,7 +134,6 @@ async fn send_command(
         Err(e) => return Err(e.into()),
     };
 }
-
 
 async fn update_state() -> anyhow::Result<HashMap<String, Value>> {
     let res = match reqwest::get("http://localhost:3100/api/v1/state").await {

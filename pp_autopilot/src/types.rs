@@ -151,7 +151,12 @@ impl AppState {
                         roll_rate: self.plane_state.get("P").unwrap().as_f64().unwrap(),
                         pitch: self.plane_state.get("pitch").unwrap().as_f64().unwrap(),
                         pitch_rate: self.plane_state.get("Q").unwrap().as_f64().unwrap(),
-                        heading: self.plane_state.get("heading").unwrap().as_f64().unwrap(),
+                        heading: self
+                            .plane_state
+                            .get("heading_true")
+                            .unwrap()
+                            .as_f64()
+                            .unwrap(),
                     };
 
                     let _ = result_sender.send(state_struct);
@@ -163,7 +168,8 @@ impl AppState {
                     standby_heading,
                     result_sender,
                 } => {
-                    self.auto_pilot_state.horizontal_guidance.heading_standby = standby_heading.clamp(0., 359.9);
+                    self.auto_pilot_state.horizontal_guidance.heading_standby =
+                        standby_heading.clamp(0., 359.9);
                     let _ = result_sender.send(true);
                 }
                 StateSignal::ActivateStandbyHeading { result_sender } => {
@@ -206,7 +212,8 @@ impl AppState {
                     standby_velocity,
                     result_sender,
                 } => {
-                    self.auto_pilot_state.vertical_guidance.velocity_standby = standby_velocity.clamp(0.0, 180.0);
+                    self.auto_pilot_state.vertical_guidance.velocity_standby =
+                        standby_velocity.clamp(0.0, 180.0);
                     let _ = result_sender.send(true);
                 }
                 StateSignal::ActivateStandbyVelocity { result_sender } => {
@@ -223,7 +230,8 @@ impl AppState {
                     standby_altitude,
                     result_sender,
                 } => {
-                    self.auto_pilot_state.vertical_guidance.altitude_standby = standby_altitude.clamp(0.0,25_000.0);
+                    self.auto_pilot_state.vertical_guidance.altitude_standby =
+                        standby_altitude.clamp(0.0, 25_000.0);
                     let _ = result_sender.send(true);
                 }
                 StateSignal::ActivateStandbyAltitude { result_sender } => {
