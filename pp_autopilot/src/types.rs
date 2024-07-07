@@ -1,4 +1,8 @@
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::Read;
+use std::io::Write;
+use std::path::Path;
 
 use anyhow::anyhow;
 use serde::Deserialize;
@@ -48,6 +52,99 @@ pub(super) struct AutoPilotState {
     pub are_we_flying: bool,
     pub vertical_guidance: VerticalGuidance,
     pub horizontal_guidance: HorizontalGuidance,
+    pub control_constants: AutoPilotConstants,
+    pub horizontal_control_metrics: AutoPilotHorizontalMetrics,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub(super) struct AutoPilotHorizontalMetrics {
+    pub heading: f64,
+    pub heading_setpoint: f64,
+    pub heading_error: f64,
+    pub roll_angle:f64,
+    pub roll_angle_target: f64,
+    pub roll_angle_error: f64,
+    pub roll_angle_rate: f64,
+    pub roll_angle_rate_target: f64,
+    pub roll_angle_rate_error: f64,
+    pub aileron_setpoint: f64,
+}
+
+impl AutoPilotHorizontalMetrics {
+    fn new() -> Self {
+        AutoPilotHorizontalMetrics {
+            heading: 0.0,
+            heading_setpoint: 0.0,
+            heading_error: 0.0,
+            roll_angle: 0.0,
+            roll_angle_target: 0.0,
+            roll_angle_error: 0.0,
+            roll_angle_rate: 0.0,
+            roll_angle_rate_target: 0.0,
+            roll_angle_rate_error: 0.0,
+            aileron_setpoint: 0.0,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub(super) struct AutoPilotConstants {
+    pub heading_error_p: f64,
+    pub heading_roll_error_d: f64,
+    pub heading_p: f64,
+    pub heading_d: f64,
+    pub heading_i: f64,
+    pub tecs_cruise_throttle_slope: f64,
+    pub tecs_cruise_throttle_base: f64,
+    pub tecs_energy_p: f64,
+    pub tecs_energy_i:f64,
+    pub pitch_error_p:f64,
+    pub pitch_rate_error_p: f64,
+    pub elevator_p: f64,
+    pub elevator_d: f64,
+    pub elevator_i: f64,
+}
+
+impl AutoPilotConstants {
+    pub fn new() -> Self {
+        AutoPilotConstants {
+            heading_error_p: 0.4,
+            heading_roll_error_d: 0.2,
+            heading_p: 0.01,
+            heading_d: 0.01,
+            heading_i: 0.001,
+            tecs_cruise_throttle_slope: 0.0000001,
+            tecs_cruise_throttle_base: 0.48,
+            tecs_energy_p: 0.001,
+            tecs_energy_i: 0.001,
+            pitch_error_p: -1.5,
+            pitch_rate_error_p: 0.3,
+            elevator_p: 0.15,
+            elevator_d: 0.015,
+            elevator_i: 0.0015,
+        }
+    }
+
+    pub fn from_file() -> Self {
+        let path = Path::new("./constants.json");  
+        let mut file = File::open(path).unwrap();
+        let mut data = String::new();
+        file.read_to_string(&mut data).unwrap();
+    
+        let json: AutoPilotConstants = serde_json::from_str(&data).unwrap();
+        json
+    }
+
+    pub fn _to_file(&self) -> anyhow::Result<()> {
+        let path = Path::new("./constants.json"); 
+        let mut file = std::fs::File::create(path)?;
+        let list_as_json = serde_json::to_string(self).unwrap();
+ 
+        file.write_all(list_as_json.as_bytes())
+            .expect("Cannot write to the file!");
+        
+        Ok(())
+   }
 }
 
 impl AutoPilotState {
@@ -69,6 +166,8 @@ impl AutoPilotState {
                 heading_standby: 120.0,
                 heading_error_integral: 0.0,
             },
+            horizontal_control_metrics: AutoPilotHorizontalMetrics::new(),
+            control_constants: AutoPilotConstants::new(),
         }
     }
 }
@@ -271,6 +370,14 @@ impl AppState {
                     self.auto_pilot_state.vertical_guidance.pitch_error_integral += value;
                     let _ = result_sender.send(true);
                 }
+                StateSignal::RefreshAutoPilotConstants { result_sender } => {
+                    self.auto_pilot_state.control_constants = AutoPilotConstants::from_file();
+                    let _ = result_sender.send(true);
+                }
+                StateSignal::UpdateHorizontalAutoPilotMetrics { metrics, result_sender } => {
+                    self.auto_pilot_state.horizontal_control_metrics = metrics;
+                    let _ = result_sender.send(true);
+                }
             }
         }
     }
@@ -346,6 +453,13 @@ pub(super) enum StateSignal {
         value: f64,
         result_sender: oneshot::Sender<bool>,
     },
+    RefreshAutoPilotConstants {
+        result_sender: oneshot::Sender<bool>,
+    },
+    UpdateHorizontalAutoPilotMetrics {
+        metrics: AutoPilotHorizontalMetrics,
+        result_sender: oneshot::Sender<bool>,
+    }
 }
 
 #[derive(Clone)]
@@ -356,6 +470,22 @@ pub(super) struct AppStateProxy {
 impl AppStateProxy {
     pub fn new(tx: mpsc::Sender<StateSignal>) -> Self {
         AppStateProxy { state_sender: tx }
+    }
+
+    pub async fn refresh_autopilot_constants(&self) -> anyhow::Result<()> {
+        let (result_sender, result_receiver) = oneshot::channel();
+
+        self.state_sender
+            .send(StateSignal::RefreshAutoPilotConstants { result_sender })
+            .await?;
+
+        match result_receiver
+            .await
+            .unwrap_or_else(|_| panic!("Failed to receive result from auto pilot state"))
+        {
+            true => return Ok(()),
+            _ => return Err(anyhow!("Error with receiving result from autopilot state")),
+        }        
     }
 
     pub async fn set_flying(&self, are_we_flying: bool) -> anyhow::Result<()> {
@@ -693,6 +823,22 @@ impl AppStateProxy {
                 value,
                 result_sender,
             })
+            .await?;
+
+        match result_receiver
+            .await
+            .unwrap_or_else(|_| panic!("Failed to receive result from auto pilot state"))
+        {
+            true => return Ok(()),
+            _ => return Err(anyhow!("Error with receiving result from autopilot state")),
+        }
+    }
+
+    pub async fn update_horizontal_control_metrics(&self, metrics: AutoPilotHorizontalMetrics) -> anyhow::Result<()> {
+        let (result_sender, result_receiver) = oneshot::channel();
+
+        self.state_sender
+            .send(StateSignal::UpdateHorizontalAutoPilotMetrics { metrics, result_sender })
             .await?;
 
         match result_receiver

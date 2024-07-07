@@ -69,6 +69,9 @@ async fn run_autopilot(app_state_proxy: AppStateProxy) -> anyhow::Result<()> {
         let auto_pilot_state: types::AutoPilotState =
             app_state_proxy.get_auto_pilot_state().await?;
 
+        // refresh the constants now every cycle, to iterate fast
+        app_state_proxy.refresh_autopilot_constants().await?;
+
         if auto_pilot_state.are_we_flying {
             let client: reqwest::Client = reqwest::Client::new();
 

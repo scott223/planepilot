@@ -1,3 +1,5 @@
+use crate::AutoPilotHorizontalMetrics;
+
 use super::{
     send_command,
     types::{CommandType, HorizontalModes},
@@ -19,8 +21,8 @@ pub(super) async fn execute_horizontal_guidance(
             //println!("Horizontal mode standby, no autopilot input for ailerons");
         }
         HorizontalModes::Heading => {
-            let kp: f64 = 0.4;
-            let kd: f64 = 0.2;
+            let kp: f64 = auto_pilot_state.control_constants.heading_error_p;
+            let kd: f64 = auto_pilot_state.control_constants.heading_roll_error_d;
 
             let heading_error: f64 =
                 auto_pilot_state.horizontal_guidance.heading_setpoint - plane_state_struct.heading;
@@ -29,10 +31,10 @@ pub(super) async fn execute_horizontal_guidance(
             let roll_error: f64 = target_roll_angle - plane_state_struct.roll;
             let target_roll_rate: f64 = (kd * roll_error).clamp(-MAX_ROLL_RATE, MAX_ROLL_RATE);
             let roll_rate_error: f64 = target_roll_rate - plane_state_struct.roll_rate;
-
-            let p: f64 = 0.01;
-            let d: f64 = 0.01;
-            let i: f64 = 0.001;
+            
+            let p: f64 = auto_pilot_state.control_constants.heading_p;
+            let d: f64 = auto_pilot_state.control_constants.heading_d;
+            let i: f64 = auto_pilot_state.control_constants.heading_i;
 
             app_state_proxy
                 .add_to_heading_error_integral(heading_error * dt)
@@ -43,16 +45,30 @@ pub(super) async fn execute_horizontal_guidance(
                 + auto_pilot_state.horizontal_guidance.heading_error_integral * i)
                 .clamp(-MAX_AILERON, MAX_AILERON);
 
-            println!(
+            tracing::event!(tracing::Level::TRACE,
                 "Heading mode - heading [deg]: {:.4}, heading error [deg]: {:.4}, target_roll_angle [deg]: {:.4}, roll [deg]: {:.4}, roll_error: {:.4}, target roll rate [deg]: {:.4}, roll rate [deg/s]: {:.4}, roll_rate_error: {:.4}, aileron [0-1]: {:.4}",
                 plane_state_struct.heading, heading_error, target_roll_angle, plane_state_struct.roll, roll_error, target_roll_rate, plane_state_struct.roll_rate, roll_rate_error, aileron
             );
 
+            let horizontal_metrics = AutoPilotHorizontalMetrics {
+                heading: plane_state_struct.heading,
+                heading_setpoint: auto_pilot_state.horizontal_guidance.heading_setpoint,
+                heading_error: heading_error,
+                roll_angle: plane_state_struct.roll,
+                roll_angle_target: target_roll_angle,
+                roll_angle_error: roll_error,
+                roll_angle_rate: plane_state_struct.roll_rate,
+                roll_angle_rate_target: target_roll_rate,
+                roll_angle_rate_error: roll_rate_error,
+                aileron_setpoint: aileron,
+            };
+
+            app_state_proxy.update_horizontal_control_metrics(horizontal_metrics).await?;
             send_command(&client, CommandType::Aileron, aileron).await?;
         }
         HorizontalModes::WingsLevel => {
-            let p: f64 = 0.01;
-            let d: f64 = 0.01;
+            let p: f64 = auto_pilot_state.control_constants.heading_p;
+            let d: f64 = auto_pilot_state.control_constants.heading_d;
 
             let aileron: f64 = (-(plane_state_struct.roll * p + plane_state_struct.roll_rate * d))
                 .clamp(-MAX_AILERON, MAX_AILERON);
