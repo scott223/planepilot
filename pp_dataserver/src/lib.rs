@@ -17,7 +17,6 @@ pub mod sse;
 pub mod utils;
 
 pub async fn run_app() -> anyhow::Result<()> {
-    
     let config = utils::Config::default();
     let db: SqlitePool = utils::db::create_and_migrate_db(&config).await;
 
@@ -63,7 +62,6 @@ pub async fn run_app() -> anyhow::Result<()> {
         .expect("error serving app. exiting.");
 
     Ok(())
-
 }
 
 // basic handler that responds with a static string

@@ -47,7 +47,9 @@ async fn share_state_with_data_server(app_state_proxy: AppStateProxy) -> anyhow:
 
         if state.contains_key("last_updated_timestamp") {
             let json = &serde_json::json!({
-                    "plane_state": state,
+                    "state_type": "PlaneState",
+                    "state": state,
+
             });
 
             let _res = match client

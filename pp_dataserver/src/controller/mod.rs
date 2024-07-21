@@ -78,25 +78,35 @@ pub async fn get_all_data(
 /// Struct to add a full state at once
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+pub enum StateType {
+    PlaneState,
+    AutoPilotState,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct AddState {
-    pub plane_state: HashMap<String, Value>,
+    pub state_type: StateType,
+    pub state: HashMap<String, Value>,
 }
 
 /// Handler to add a state Json to the database - will loop through the state hashmap and add each item
 
 pub async fn add_state(
-    State(app_state): State<AppState>,
+    State(_app_state): State<AppState>,
     Json(payload): Json<AddState>,
 ) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     let timestamp = chrono::Utc::now().timestamp_nanos_opt().unwrap();
 
-    let mut line: String = "plane_state ".to_owned();
+    let mut line: String = match payload.state_type {
+        StateType::PlaneState => "plane_state ".to_owned(),
+        StateType::AutoPilotState => "autopilot_state ".to_owned(),
+    };
 
     line.push_str(
         &payload
-            .plane_state
+            .state
             .iter()
-            .filter(|(k, v)| v.is_number())
+            .filter(|(_k, v)| v.is_number())
             .map(|(k, v)| format!("{}={}", k, v.as_f64().unwrap()))
             .join(","),
     );
@@ -104,9 +114,9 @@ pub async fn add_state(
     line.push_str(" ");
     line.push_str(&timestamp.to_string());
 
-    dbg!(line.clone());
+    //dbg!(line.clone());
 
-    let params = [("bucket", "Planepilot")];
+    //let params = [("bucket", "Planepilot")];
     let client = reqwest::Client::new();
     let res = client
     .post("https://eu-central-1-1.aws.cloud2.influxdata.com/api/v2/write/?bucket=Planepilot")
@@ -117,7 +127,7 @@ pub async fn add_state(
 
     match res {
         Ok(r) => {
-            println!("ok {:?}", r.text().await);
+            //println!("ok {:?}", r.text().await);
         }
         Err(e) => {
             println! {"e: {}", e}

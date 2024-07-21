@@ -61,7 +61,7 @@ pub(super) struct AutoPilotHorizontalMetrics {
     pub heading: f64,
     pub heading_setpoint: f64,
     pub heading_error: f64,
-    pub roll_angle:f64,
+    pub roll_angle: f64,
     pub roll_angle_target: f64,
     pub roll_angle_error: f64,
     pub roll_angle_rate: f64,
@@ -97,8 +97,8 @@ pub(super) struct AutoPilotConstants {
     pub tecs_cruise_throttle_slope: f64,
     pub tecs_cruise_throttle_base: f64,
     pub tecs_energy_p: f64,
-    pub tecs_energy_i:f64,
-    pub pitch_error_p:f64,
+    pub tecs_energy_i: f64,
+    pub pitch_error_p: f64,
     pub pitch_rate_error_p: f64,
     pub elevator_p: f64,
     pub elevator_d: f64,
@@ -126,25 +126,25 @@ impl AutoPilotConstants {
     }
 
     pub fn from_file() -> Self {
-        let path = Path::new("./constants.json");  
+        let path = Path::new("./constants.json");
         let mut file = File::open(path).unwrap();
         let mut data = String::new();
         file.read_to_string(&mut data).unwrap();
-    
+
         let json: AutoPilotConstants = serde_json::from_str(&data).unwrap();
         json
     }
 
     pub fn _to_file(&self) -> anyhow::Result<()> {
-        let path = Path::new("./constants.json"); 
+        let path = Path::new("./constants.json");
         let mut file = std::fs::File::create(path)?;
         let list_as_json = serde_json::to_string(self).unwrap();
- 
+
         file.write_all(list_as_json.as_bytes())
             .expect("Cannot write to the file!");
-        
+
         Ok(())
-   }
+    }
 }
 
 impl AutoPilotState {
@@ -152,19 +152,20 @@ impl AutoPilotState {
         AutoPilotState {
             are_we_flying: false,
             vertical_guidance: VerticalGuidance {
-                vertical_mode: VerticalModes::Standby,
+                vertical_mode: VerticalModes::TECS,
                 velocity_setpoint: 100.0,
                 velocity_standby: 80.0,
-                altitude_setpoint: 3000.0,
+                altitude_setpoint: 3100.0,
                 altitude_standby: 3500.0,
                 energy_error_integral: 0.0,
                 pitch_error_integral: 0.0,
             },
             horizontal_guidance: HorizontalGuidance {
-                horizontal_mode: HorizontalModes::Standby,
+                horizontal_mode: HorizontalModes::Heading,
                 heading_setpoint: 90.0,
                 heading_standby: 120.0,
                 heading_error_integral: 0.0,
+                roll_error_integral: 0.0,
             },
             horizontal_control_metrics: AutoPilotHorizontalMetrics::new(),
             control_constants: AutoPilotConstants::new(),
@@ -188,6 +189,7 @@ pub struct HorizontalGuidance {
     pub heading_setpoint: f64,
     pub heading_standby: f64,
     pub heading_error_integral: f64,
+    pub roll_error_integral: f64,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -277,6 +279,14 @@ impl AppState {
                     self.auto_pilot_state.horizontal_guidance.heading_setpoint =
                         self.auto_pilot_state.horizontal_guidance.heading_standby;
 
+                    self.auto_pilot_state
+                        .horizontal_guidance
+                        .heading_error_integral = 0.0;
+
+                    self.auto_pilot_state
+                        .horizontal_guidance
+                        .roll_error_integral = 0.0;
+
                     self.auto_pilot_state.horizontal_guidance.heading_standby = temp;
                     let _ = result_sender.send(true);
                 }
@@ -305,6 +315,15 @@ impl AppState {
                     self.auto_pilot_state
                         .horizontal_guidance
                         .heading_error_integral += value;
+                    let _ = result_sender.send(true);
+                }
+                StateSignal::AddToRollErrorIntegral {
+                    value,
+                    result_sender,
+                } => {
+                    self.auto_pilot_state
+                        .horizontal_guidance
+                        .roll_error_integral += value;
                     let _ = result_sender.send(true);
                 }
                 StateSignal::SetStandbyVelocity {
@@ -374,7 +393,10 @@ impl AppState {
                     self.auto_pilot_state.control_constants = AutoPilotConstants::from_file();
                     let _ = result_sender.send(true);
                 }
-                StateSignal::UpdateHorizontalAutoPilotMetrics { metrics, result_sender } => {
+                StateSignal::UpdateHorizontalAutoPilotMetrics {
+                    metrics,
+                    result_sender,
+                } => {
                     self.auto_pilot_state.horizontal_control_metrics = metrics;
                     let _ = result_sender.send(true);
                 }
@@ -422,6 +444,10 @@ pub(super) enum StateSignal {
         value: f64,
         result_sender: oneshot::Sender<bool>,
     },
+    AddToRollErrorIntegral {
+        value: f64,
+        result_sender: oneshot::Sender<bool>,
+    },
     SetHorizontalGuidanceToWingsLevelMode {
         result_sender: oneshot::Sender<bool>,
     },
@@ -459,7 +485,7 @@ pub(super) enum StateSignal {
     UpdateHorizontalAutoPilotMetrics {
         metrics: AutoPilotHorizontalMetrics,
         result_sender: oneshot::Sender<bool>,
-    }
+    },
 }
 
 #[derive(Clone)]
@@ -485,7 +511,7 @@ impl AppStateProxy {
         {
             true => return Ok(()),
             _ => return Err(anyhow!("Error with receiving result from autopilot state")),
-        }        
+        }
     }
 
     pub async fn set_flying(&self, are_we_flying: bool) -> anyhow::Result<()> {
@@ -689,6 +715,25 @@ impl AppStateProxy {
         }
     }
 
+    pub async fn add_to_roll_error_integral(&self, value: f64) -> anyhow::Result<()> {
+        let (result_sender, result_receiver) = oneshot::channel();
+
+        self.state_sender
+            .send(StateSignal::AddToRollErrorIntegral {
+                value,
+                result_sender,
+            })
+            .await?;
+
+        match result_receiver
+            .await
+            .unwrap_or_else(|_| panic!("Failed to receive result from auto pilot state"))
+        {
+            true => return Ok(()),
+            _ => return Err(anyhow!("Error with receiving result from autopilot state")),
+        }
+    }
+
     // vertical modes
 
     pub async fn set_velocity_standby(&self, velocity: f64) -> anyhow::Result<()> {
@@ -834,11 +879,17 @@ impl AppStateProxy {
         }
     }
 
-    pub async fn update_horizontal_control_metrics(&self, metrics: AutoPilotHorizontalMetrics) -> anyhow::Result<()> {
+    pub async fn update_horizontal_control_metrics(
+        &self,
+        metrics: AutoPilotHorizontalMetrics,
+    ) -> anyhow::Result<()> {
         let (result_sender, result_receiver) = oneshot::channel();
 
         self.state_sender
-            .send(StateSignal::UpdateHorizontalAutoPilotMetrics { metrics, result_sender })
+            .send(StateSignal::UpdateHorizontalAutoPilotMetrics {
+                metrics,
+                result_sender,
+            })
             .await?;
 
         match result_receiver
