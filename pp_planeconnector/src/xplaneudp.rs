@@ -63,7 +63,7 @@ pub(super) async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> 
                 });
 
             event!(
-                Level::INFO,
+                Level::TRACE,
                 "Command package sent (len: {:?}): {:?}",
                 len,
                 c

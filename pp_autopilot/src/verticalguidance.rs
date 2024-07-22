@@ -47,6 +47,8 @@ pub(super) async fn execute_vertical_guidance(
                 .add_to_energy_error_integral(energy_error * dt)
                 .await?;
 
+            dbg!(energy_error * dt); 
+
             let ke: f64 = auto_pilot_state.control_constants.tecs_energy_p;
             let ks = auto_pilot_state.control_constants.tecs_cruise_throttle_slope;
             let thr_cruise = auto_pilot_state.control_constants.tecs_cruise_throttle_base + target_energy * ks;

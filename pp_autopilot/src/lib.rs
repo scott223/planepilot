@@ -21,6 +21,7 @@ pub async fn run_app() -> anyhow::Result<()> {
     tokio::select! {
         _ = app_state.process() => { }
         _ = run_autopilot(app_state_proxy.clone()) => { }
+        _ = share_state_with_data_server(app_state_proxy.clone()) => { }
         _ = httpserver::run_server(app_state_proxy.clone()) => { }
     }
 
@@ -31,7 +32,6 @@ pub async fn run_app() -> anyhow::Result<()> {
 
 async fn run_autopilot(app_state_proxy: AppStateProxy) -> anyhow::Result<()> {
     const MILLISECONDS_PER_LOOP: u64 = 200;
-
 
     let mut local_error_state: bool = true;
 
@@ -58,14 +58,18 @@ async fn run_autopilot(app_state_proxy: AppStateProxy) -> anyhow::Result<()> {
                     app_state_proxy.activate_vertical_standby_mode().await?;
                     app_state_proxy.activate_horizontal_standby_mode().await?;
 
-                    event!(Level::ERROR, "Error when updating state so autopilot set to standby: {:?}", e);
+                    event!(
+                        Level::ERROR,
+                        "Error when updating state so autopilot set to standby: {:?}",
+                        e
+                    );
                 }
             }
         };
 
         let auto_pilot_state: types::AutoPilotState =
-            app_state_proxy.get_auto_pilot_state().await?;      
-        
+            app_state_proxy.get_auto_pilot_state().await?;
+
         // refresh the constants now every cycle, to iterate fast
         app_state_proxy.refresh_autopilot_constants().await?;
 
@@ -75,7 +79,7 @@ async fn run_autopilot(app_state_proxy: AppStateProxy) -> anyhow::Result<()> {
             let plane_state_struct: PlaneStateStruct =
                 app_state_proxy.get_plane_state_as_struct().await?;
 
-            let dt: f64 = (MILLISECONDS_PER_LOOP / 1000) as f64; // in seconds
+            let dt: f64 = (MILLISECONDS_PER_LOOP as f64 / 1000.0);
 
             verticalguidance::execute_vertical_guidance(
                 dt,
@@ -135,7 +139,6 @@ async fn send_command(
     };
 }
 
-
 async fn update_state() -> anyhow::Result<HashMap<String, Value>> {
     let res = match reqwest::get("http://localhost:3100/api/v1/state").await {
         Ok(res) => res,
@@ -159,5 +162,45 @@ async fn update_state() -> anyhow::Result<HashMap<String, Value>> {
                 SpecificErrors::PlaneConnectorReturnedError,
             ))
         }
+    }
+}
+
+async fn share_state_with_data_server(app_state_proxy: AppStateProxy) -> anyhow::Result<()> {
+    let client = reqwest::Client::new();
+
+    loop {
+        let state = app_state_proxy.get_auto_pilot_state().await?;
+        if state.are_we_flying {
+            let mut jsons: Vec<Value> = Vec::with_capacity(3);
+
+            jsons.push(serde_json::json!({
+                    "state_type": "AutoPilotState",
+                    "state": state.horizontal_control_metrics,
+            }));
+
+            jsons.push(serde_json::json!({
+                    "state_type": "AutoPilotState",
+                    "state": state.horizontal_guidance,
+            }));
+
+            jsons.push(serde_json::json!({
+                    "state_type": "AutoPilotState",
+                    "state": state.vertical_guidance,
+            }));
+
+            for j in jsons {
+                let _res = match client
+                    .post("http://localhost:3000/api/v1/state")
+                    .json(&j)
+                    .send()
+                    .await
+                {
+                    Ok(_res) => {}
+                    Err(e) => return Err(e.into()),
+                };
+            }
+        };
+
+        let _ = tokio::time::sleep(Duration::from_millis(1000)).await;
     }
 }

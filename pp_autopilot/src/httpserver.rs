@@ -80,11 +80,7 @@ async fn switch_key(
 
     match res {
         Ok(_) => {
-            event!(
-                Level::INFO,
-                "Activated value for {}",
-                key
-            );
+            event!(Level::INFO, "Activated value for {}", key);
             return Ok(StatusCode::OK);
         }
         Err(e) => {
@@ -109,12 +105,7 @@ async fn set_key(
 
     match res {
         Ok(_) => {
-            event!(
-                Level::INFO,
-                "Standy value set ({}, {})",
-                key,
-                value
-            );
+            event!(Level::INFO, "Standy value set ({}, {})", key, value);
             return Ok(StatusCode::OK);
         }
         Err(e) => {
@@ -155,4 +146,3 @@ async fn activate_mode(
         }
     };
 }
-

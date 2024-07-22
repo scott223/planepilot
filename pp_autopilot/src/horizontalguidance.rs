@@ -18,7 +18,7 @@ pub(super) async fn execute_horizontal_guidance(
 
     match auto_pilot_state.horizontal_guidance.horizontal_mode {
         HorizontalModes::Standby => {
-            println!("Horizontal mode standby, no autopilot input for ailerons");
+            //println!("Horizontal mode standby, no autopilot input for ailerons");
         }
         HorizontalModes::Heading => {
             let kp: f64 = auto_pilot_state.control_constants.heading_error_p;
@@ -31,7 +31,7 @@ pub(super) async fn execute_horizontal_guidance(
             let roll_error: f64 = target_roll_angle - plane_state_struct.roll;
             let target_roll_rate: f64 = (kd * roll_error).clamp(-MAX_ROLL_RATE, MAX_ROLL_RATE);
             let roll_rate_error: f64 = target_roll_rate - plane_state_struct.roll_rate;
-            
+
             let p: f64 = auto_pilot_state.control_constants.heading_p;
             let d: f64 = auto_pilot_state.control_constants.heading_d;
             let i: f64 = auto_pilot_state.control_constants.heading_i;
@@ -40,9 +40,13 @@ pub(super) async fn execute_horizontal_guidance(
                 .add_to_heading_error_integral(heading_error * dt)
                 .await?;
 
+            app_state_proxy
+                .add_to_roll_error_integral(roll_error * dt)
+                .await?;
+
             let aileron: f64 = (roll_error * p
                 + roll_rate_error * d
-                + auto_pilot_state.horizontal_guidance.heading_error_integral * i)
+                + auto_pilot_state.horizontal_guidance.roll_error_integral * i)
                 .clamp(-MAX_AILERON, MAX_AILERON);
 
             tracing::event!(tracing::Level::TRACE,
@@ -63,7 +67,9 @@ pub(super) async fn execute_horizontal_guidance(
                 aileron_setpoint: aileron,
             };
 
-            app_state_proxy.update_horizontal_control_metrics(horizontal_metrics).await?;
+            app_state_proxy
+                .update_horizontal_control_metrics(horizontal_metrics)
+                .await?;
             send_command(&client, CommandType::Aileron, aileron).await?;
         }
         HorizontalModes::WingsLevel => {
