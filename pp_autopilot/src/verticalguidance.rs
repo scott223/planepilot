@@ -60,10 +60,13 @@ pub(super) async fn execute_vertical_guidance(
                 + auto_pilot_state.vertical_guidance.energy_error_integral * ki)
                 .clamp(0.0, 1.0);
 
+            //todo 
+
             println!(
                 "TEC mode - alitude [ft]: {:.4}, Vind [kt]: {:.4}, energy_error: {:.4}, integral: {:.4}, throttle: {:.4}",
                 plane_state_struct.altitude_msl, plane_state_struct.v_ind, energy_error, auto_pilot_state.vertical_guidance.energy_error_integral, throttle
             );
+
 
             send_command(&client, CommandType::Throttle, throttle).await?;
 

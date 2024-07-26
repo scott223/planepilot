@@ -57,9 +57,26 @@ pub(super) struct AutoPilotState {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+pub(super) struct AutoPilotVerticalMetrics {
+    pub altitude_msl: f64,
+    pub altitude_target: f64,
+    altitude_error: f64,
+    velocity: f64,
+    velocity_target: f64,
+    velocity_error: f64,
+    kinetic_energy: f64,
+    kinetic_energy_target: f64,
+    potential_energy: f64,
+    potential_energy_target: f64,
+    energy: f64,
+    energy_target: f64,
+    energy_error: f64,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub(super) struct AutoPilotHorizontalMetrics {
     pub heading: f64,
-    pub heading_setpoint: f64,
+    pub heading_target: f64,
     pub heading_error: f64,
     pub roll_angle: f64,
     pub roll_angle_target: f64,
@@ -74,7 +91,7 @@ impl AutoPilotHorizontalMetrics {
     fn new() -> Self {
         AutoPilotHorizontalMetrics {
             heading: 0.0,
-            heading_setpoint: 0.0,
+            heading_target: 0.0,
             heading_error: 0.0,
             roll_angle: 0.0,
             roll_angle_target: 0.0,
