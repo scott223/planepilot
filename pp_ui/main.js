@@ -32,17 +32,52 @@ async function updateUI() {
 	
 	let state = await getAutoPilotState();
 
+	console.log(state);
+
+	activate_horizontal_standby_button.classList.remove("btn-outline-success", "btn-success");
+	activate_horizontal_wings_level_button.classList.remove("btn-outline-success", "btn-success");
+	activate_horizontal_heading_button.classList.remove("btn-outline-success", "btn-success");
+
+	activate_vertical_standby_button.classList.remove("btn-outline-success", "btn-success");
+	activate_vertical_TECS_button.classList.remove("btn-outline-success", "btn-success");
+
 	//horizontal
-	horizontal_mode.innerHTML = state.horizontal_guidance.horizontal_mode;
+
+	switch (state.horizontal_guidance.horizontal_mode) {
+	case "Standby":
+		activate_horizontal_standby_button.classList.add("btn-success");
+		activate_horizontal_wings_level_button.classList.add("btn-outline-success")
+		activate_horizontal_heading_button.classList.add("btn-outline-success")
+		break;
+	case "WingsLevel":
+		activate_horizontal_standby_button.classList.add("btn-outline-success");
+		activate_horizontal_wings_level_button.classList.add("btn-success")
+		activate_horizontal_heading_button.classList.add("btn-outline-success")
+		break;
+	case "Heading":
+		activate_horizontal_standby_button.classList.add("btn-outline-success");
+		activate_horizontal_wings_level_button.classList.add("btn-outline-success")
+		activate_horizontal_heading_button.classList.add("btn-success")		
+	}
+
 	heading_active.innerHTML = state.horizontal_guidance.heading_setpoint;
 
 	if (document.activeElement !== heading_standby) {
 		heading_standby.value = state.horizontal_guidance.heading_standby;
 	}
 
+	//vertical
 
-	let vertical_guidance_state = document.querySelector("#vertical_mode");
-	vertical_guidance_state.innerHTML = state.vertical_guidance.vertical_mode;
+	switch (state.vertical_guidance.vertical_mode) {
+	case "Standby":
+		activate_vertical_standby_button.classList.add("btn-success");
+		activate_vertical_TECS_button.classList.add("btn-outline-success");
+		break;
+	case "TECS":
+		activate_vertical_standby_button.classList.add("btn-outline-success");
+		activate_vertical_TECS_button.classList.add("btn-success");
+		break;	
+	}
 
 	let plane_state = await getPlaneState();
 
@@ -227,6 +262,8 @@ activate_vertical_TECS_button.addEventListener("click", () => activateVerticalTE
 
 heading_standby.addEventListener("change", () => setHeadingStandby());
 switch_heading.addEventListener("click", () => switchHeading());
+
+var map = L.map('map').setView([51.505, -0.09], 13);
 
 updateUI();
 

@@ -10,15 +10,15 @@ license = "MIT"
 
 [dependencies]
 dotenv = "0.15.0"
-tokio = { version = "1.37.0", features = ["full"] }
+tokio = { version = "1.39", features = ["full"] }
 tokio-util = "0.7.11"
 
 reqwest = { version = "0.12.4", features = ["json"] }
-serde = { version = "1.0.197", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.115"
 crossterm = {version = "0.27", features = ['events', 'event-stream'] }
 
-anyhow = "1.0.81"
+anyhow = "1.0.86"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 chrono = { version = "0.4.37", features = ["serde"] }

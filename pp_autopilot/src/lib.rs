@@ -153,6 +153,7 @@ async fn update_state() -> anyhow::Result<HashMap<String, Value>> {
         reqwest::StatusCode::OK => {
             let state = res.json::<HashMap<String, Value>>().await?;
             if !state.contains_key("last_updated_timestamp") {
+                //todo check the recent update datetime, and if not recent, return error
                 return Err(anyhow::Error::new(SpecificErrors::StateNotUpdatedRecently));
             }
             return Ok(state);
