@@ -1,61 +1,73 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>PlanePilot Autopilot</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
-    <link rel="stylesheet" href="styles.css">
-  </head>
-  <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-      <div class="container">
-        <a class="navbar-brand" href="#">PlanePilot</a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-          <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarSupportedContent">
-          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-            <li class="nav-item">
-              <a class="nav-link active" aria-current="page" href="#">Home</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="#">Link</a>
-            </li>
+   <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>PlanePilot Autopilot</title>
+      <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
 
-          </ul>
+
+      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/>
+
+
+      <link rel="stylesheet" href="styles.css">
+   </head>
+   <body>
+      <br />
+      <div class="container-fluid">
+      <div class="row">
+        <div class="col">
+ <div id="map"></div>
         </div>
       </div>
-    </nav>
+      <div class="row text-center">
+         <div class="col">
+            <div class="input-group" role="group" aria-label="Horizontal guidance">
+               <button type="button" class="btn btn-outline-success" id="activate_horizontal_standby_button">STBY</button>
+               <button type="button" class="btn btn-outline-success" id="activate_horizontal_wings_level_button">WINGS LVL</button>
+               <button type="button" class="btn btn-outline-success" id="activate_horizontal_heading_button">HDG HOLD</button>
 
-    <div class="container my-5">
-      <div class="col-lg-8 px-0">
+               <span class="input-group-text">HDG:&nbsp;<span id="heading_active">XXX</span> &nbsp; [deg]</span>
+               <input type="number" id="heading_standby" name="heading_standby" min="0" max="359" />
+               <button type="button" class="btn btn-sm btn-outline-secondary" id="switch_heading">HDG SET</button>
 
-        <h2>Horizontal guidance </h2>
-        Mode: <div id="horizontal_mode">Unknown</div><br />
+            </div>
+          </div>
+          <div class="col">
 
-        Heading active: <div id="heading_active">Unknown</div><br />
-        Heading standby: <input type="number" id="heading_standby" name="heading_standby"" min="0" max="359" /><br />
+            <div class="btn-group" role="group" aria-label="Horizontal guidance">
+               <button type="button" class="btn btn-outline-success" id="activate_vertical_standby_button">Standby</button>
+               <button type="button" class="btn btn-outline-success" id="activate_vertical_TECS_button">TECS</button>
 
-        <button type="button" id="switch_heading">Switch heading</button><br /><br />
+               <span class="input-group-text">SPD:&nbsp;<span id="speed_active">XXX</span> &nbsp; [kts]</span>
+               <input type="number" id="speed_standby" name="speed_standby" min="50" max="140" />
+               <button type="button" class="btn btn-sm btn-outline-secondary" id="switch_speed">SPD SET</button>
 
-        <button type="button" id="activate_horizontal_standby_button">Standby</button>
-        <button type="button" id="activate_horizontal_wings_level_button">Wings level</button>
-        <button type="button" id="activate_horizontal_heading_button">Heading hold</button>
+               <span class="input-group-text">ALT:&nbsp;<span id="altitude_active">XXXX</span> &nbsp; [ft]</span>
+               <input type="number" id="altitude_standby" name="altitude_standby" min="500" max="40000" />
+               <button type="button" class="btn btn-sm btn-outline-secondary" id="switch_altitude">ALT SET</button>
 
-        <h2>Vertical guidance</h2>
-        Mode: <div id="vertical_mode">Unknown</div><br />
+               
 
-        <button type="button" id="activate_vertical_standby_button">Standby</button>
-        <button type="button" id="activate_vertical_TECS_button">TECS</button>
 
-        <h2>Plane metrics</h2>
-        <div><pre id="plane_state"></pre><div>
-
+            </div>
+         </div>
       </div>
-    </div>
+      <div class="row">
+          <div>
+         <b>Plane metrics</b>
+            <pre id="plane_state"></pre>
+            <div>
+            </div>
+         </div>
+      </div>
+      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+           <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+     crossorigin=""></script>
+      <script src="main.js?v=2992"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
-    <script src="main.js?v=2992"></script>
-  </body>
+   </body>
 </html>

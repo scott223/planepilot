@@ -14,7 +14,7 @@ pp_dataserver = { path = "pp_dataserver" }
 pp_planeconnector = { path = "pp_planeconnector" }
 
 dotenv = "0.15.0"
-tokio = { version = "1.37.0", features = ["full"] }
+tokio = { version = "1.39.1", features = ["full"] }
 tokio-util = "0.7.11"
 
 tracing = "0.1.40"

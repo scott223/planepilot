@@ -1,3 +1,6 @@
+[![dependency status](https://deps.rs/repo/github/scott223/planepilot/status.svg)](https://deps.rs/repo/github/scott223/planepilot)
+[![lines count](https://img.shields.io/endpoint?url=https://ghloc.vercel.app/api/scott223/planepilot/badge?filter=.rs$,.toml$)](https://ghloc.vercel.app/scott223/planepilot?filter=.rs$,.toml$)
+
 # planepilot
 xplane11 logger and (future) autopilot
 
