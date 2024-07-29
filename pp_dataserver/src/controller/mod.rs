@@ -126,7 +126,7 @@ pub async fn add_state(
     .await;
 
     match res {
-        Ok(r) => {
+        Ok(_r) => {
             //println!("ok {:?}", r.text().await);
         }
         Err(e) => {

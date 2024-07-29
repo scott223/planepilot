@@ -1,3 +1,5 @@
+use crate::AutoPilotVerticalMetrics;
+
 use super::{
     send_command,
     types::{CommandType, VerticalModes},
@@ -102,6 +104,32 @@ pub(super) async fn execute_vertical_guidance(
                 "TEC mode - pitch [deg]: {:.4}, target_pitch [deg]: {:.4}, pitch_error [deg]: {:.4}, pitch_rate: {:.4}, target_pitch_rate: {:.4}, pitch_rate_error: {:.4}, elevator {:.4}",
                 plane_state_struct.pitch, target_pitch, pitch_error, plane_state_struct.pitch_rate, target_pitch_rate, pitch_rate_error, elevator
             );
+
+            
+            let vertical_metrics = AutoPilotVerticalMetrics {
+                altitude_msl: plane_state_struct.altitude_msl,
+                altitude_target: auto_pilot_state.vertical_guidance.altitude_setpoint,
+                altitude_error: auto_pilot_state.vertical_guidance.altitude_setpoint - plane_state_struct.altitude_msl,
+                velocity: plane_state_struct.v_ind,
+                velocity_target: auto_pilot_state.vertical_guidance.velocity_setpoint,
+                velocity_error: auto_pilot_state.vertical_guidance.velocity_setpoint - plane_state_struct.v_ind,
+                kinetic_energy: kinetic,
+                kinetic_energy_target: target_kinetic,
+                potential_energy: potential,
+                potential_energy_target: target_potential,
+                energy: energy,
+                energy_target: target_energy,
+                energy_error: energy_error,
+                pitch: plane_state_struct.pitch,
+                pitch_target: target_pitch,
+                pitch_error: pitch_error,
+                pitch_rate: plane_state_struct.pitch_rate,
+                pitch_rate_target: target_pitch_rate,
+                pitch_rate_error: pitch_rate_error,
+                elevator_setpoint: elevator,
+            };
+            
+            app_state_proxy.update_vertical_control_metrics(vertical_metrics).await?;
 
             send_command(&client, CommandType::Elevator, elevator).await?;
         }

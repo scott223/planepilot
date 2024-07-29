@@ -50,27 +50,68 @@ pub(super) struct PlaneStateStruct {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub(super) struct AutoPilotState {
     pub are_we_flying: bool,
+    #[serde(flatten)]
     pub vertical_guidance: VerticalGuidance,
+    #[serde(flatten)]
     pub horizontal_guidance: HorizontalGuidance,
+    #[serde(flatten)]
     pub control_constants: AutoPilotConstants,
+    #[serde(flatten)]
     pub horizontal_control_metrics: AutoPilotHorizontalMetrics,
+    #[serde(flatten)]
+    pub vertical_control_metrics: AutoPilotVerticalMetrics,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub(super) struct AutoPilotVerticalMetrics {
     pub altitude_msl: f64,
     pub altitude_target: f64,
-    altitude_error: f64,
-    velocity: f64,
-    velocity_target: f64,
-    velocity_error: f64,
-    kinetic_energy: f64,
-    kinetic_energy_target: f64,
-    potential_energy: f64,
-    potential_energy_target: f64,
-    energy: f64,
-    energy_target: f64,
-    energy_error: f64,
+    pub altitude_error: f64,
+    pub velocity: f64,
+    pub velocity_target: f64,
+    pub velocity_error: f64,
+    pub kinetic_energy: f64,
+    pub kinetic_energy_target: f64,
+    pub potential_energy: f64,
+    pub potential_energy_target: f64,
+    pub energy: f64,
+    pub energy_target: f64,
+    pub energy_error: f64,
+    pub pitch: f64,
+    pub pitch_target: f64,
+    pub pitch_error: f64,
+    pub pitch_rate: f64,
+    pub pitch_rate_target: f64,
+    pub pitch_rate_error: f64,
+    pub elevator_setpoint: f64,
+}
+
+
+impl AutoPilotVerticalMetrics {
+    fn new() -> Self {
+        AutoPilotVerticalMetrics {
+            altitude_msl: 0.0,
+            altitude_target: 0.0,
+            altitude_error: 0.0,
+            velocity: 0.0,
+            velocity_target: 0.0,
+            velocity_error: 0.0,
+            kinetic_energy: 0.0,
+            kinetic_energy_target: 0.0,
+            potential_energy: 0.0,
+            potential_energy_target: 0.0,
+            energy: 0.0,
+            energy_target: 0.0,
+            energy_error: 0.0,
+            pitch: 0.0,
+            pitch_target: 0.0,
+            pitch_error: 0.0,
+            pitch_rate: 0.0,
+            pitch_rate_target: 0.0,
+            pitch_rate_error: 0.0,
+            elevator_setpoint: 0.0,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -185,6 +226,7 @@ impl AutoPilotState {
                 roll_error_integral: 0.0,
             },
             horizontal_control_metrics: AutoPilotHorizontalMetrics::new(),
+            vertical_control_metrics: AutoPilotVerticalMetrics::new(),
             control_constants: AutoPilotConstants::new(),
         }
     }
@@ -417,6 +459,14 @@ impl AppState {
                     self.auto_pilot_state.horizontal_control_metrics = metrics;
                     let _ = result_sender.send(true);
                 }
+                StateSignal::UpdateVerticalAutoPilotMetrics {
+                    metrics,
+                    result_sender,
+                } => {
+                    self.auto_pilot_state.vertical_control_metrics = metrics;
+                    let _ = result_sender.send(true);
+                }
+                
             }
         }
     }
@@ -501,6 +551,10 @@ pub(super) enum StateSignal {
     },
     UpdateHorizontalAutoPilotMetrics {
         metrics: AutoPilotHorizontalMetrics,
+        result_sender: oneshot::Sender<bool>,
+    },
+    UpdateVerticalAutoPilotMetrics {
+        metrics: AutoPilotVerticalMetrics,
         result_sender: oneshot::Sender<bool>,
     },
 }
@@ -904,6 +958,28 @@ impl AppStateProxy {
 
         self.state_sender
             .send(StateSignal::UpdateHorizontalAutoPilotMetrics {
+                metrics,
+                result_sender,
+            })
+            .await?;
+
+        match result_receiver
+            .await
+            .unwrap_or_else(|_| panic!("Failed to receive result from auto pilot state"))
+        {
+            true => return Ok(()),
+            _ => return Err(anyhow!("Error with receiving result from autopilot state")),
+        }
+    }
+    
+    pub async fn update_vertical_control_metrics(
+        &self,
+        metrics: AutoPilotVerticalMetrics,
+    ) -> anyhow::Result<()> {
+        let (result_sender, result_receiver) = oneshot::channel();
+
+        self.state_sender
+            .send(StateSignal::UpdateVerticalAutoPilotMetrics {
                 metrics,
                 result_sender,
             })

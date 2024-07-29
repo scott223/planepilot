@@ -79,7 +79,7 @@ async fn run_autopilot(app_state_proxy: AppStateProxy) -> anyhow::Result<()> {
             let plane_state_struct: PlaneStateStruct =
                 app_state_proxy.get_plane_state_as_struct().await?;
 
-            let dt: f64 = (MILLISECONDS_PER_LOOP as f64 / 1000.0);
+            let dt: f64 = MILLISECONDS_PER_LOOP as f64 / 1000.0;
 
             verticalguidance::execute_vertical_guidance(
                 dt,
@@ -170,37 +170,25 @@ async fn share_state_with_data_server(app_state_proxy: AppStateProxy) -> anyhow:
 
     loop {
         let state = app_state_proxy.get_auto_pilot_state().await?;
-        if state.are_we_flying {
-            let mut jsons: Vec<Value> = Vec::with_capacity(3);
 
-            jsons.push(serde_json::json!({
-                    "state_type": "AutoPilotState",
-                    "state": state.horizontal_control_metrics,
-            }));
+        // AutoPilotState uses serde flatten to flatten into one JSON withouth nesting
+        let json = serde_json::json!({
+            "state_type": "AutoPilotState",
+            "state": state,
+        });
 
-            jsons.push(serde_json::json!({
-                    "state_type": "AutoPilotState",
-                    "state": state.horizontal_guidance,
-            }));
+        dbg!(&json);
 
-            jsons.push(serde_json::json!({
-                    "state_type": "AutoPilotState",
-                    "state": state.vertical_guidance,
-            }));
-
-            for j in jsons {
-                let _res = match client
-                    .post("http://localhost:3000/api/v1/state")
-                    .json(&j)
-                    .send()
-                    .await
-                {
-                    Ok(_res) => {}
-                    Err(e) => return Err(e.into()),
-                };
-            }
+        let _res = match client
+            .post("http://localhost:3000/api/v1/state")
+            .json(&json)
+            .send()
+            .await
+        {
+            Ok(_res) => {}
+            Err(e) => return Err(e.into()),
         };
-
+        
         let _ = tokio::time::sleep(Duration::from_millis(1000)).await;
     }
 }
