@@ -47,7 +47,7 @@ pub(super) struct PlaneStateStruct {
     pub heading: f64,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Default, Serialize, Clone)]
 pub(super) struct AutoPilotState {
     pub are_we_flying: bool,
     #[serde(flatten)]
@@ -62,7 +62,7 @@ pub(super) struct AutoPilotState {
     pub vertical_control_metrics: AutoPilotVerticalMetrics,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Default, Serialize, Clone)]
 pub(super) struct AutoPilotVerticalMetrics {
     pub altitude_msl: f64,
     pub altitude_target: f64,
@@ -86,35 +86,7 @@ pub(super) struct AutoPilotVerticalMetrics {
     pub elevator_setpoint: f64,
 }
 
-
-impl AutoPilotVerticalMetrics {
-    fn new() -> Self {
-        AutoPilotVerticalMetrics {
-            altitude_msl: 0.0,
-            altitude_target: 0.0,
-            altitude_error: 0.0,
-            velocity: 0.0,
-            velocity_target: 0.0,
-            velocity_error: 0.0,
-            kinetic_energy: 0.0,
-            kinetic_energy_target: 0.0,
-            potential_energy: 0.0,
-            potential_energy_target: 0.0,
-            energy: 0.0,
-            energy_target: 0.0,
-            energy_error: 0.0,
-            pitch: 0.0,
-            pitch_target: 0.0,
-            pitch_error: 0.0,
-            pitch_rate: 0.0,
-            pitch_rate_target: 0.0,
-            pitch_rate_error: 0.0,
-            elevator_setpoint: 0.0,
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Default, Serialize, Clone)]
 pub(super) struct AutoPilotHorizontalMetrics {
     pub heading: f64,
     pub heading_target: f64,
@@ -128,24 +100,7 @@ pub(super) struct AutoPilotHorizontalMetrics {
     pub aileron_setpoint: f64,
 }
 
-impl AutoPilotHorizontalMetrics {
-    fn new() -> Self {
-        AutoPilotHorizontalMetrics {
-            heading: 0.0,
-            heading_target: 0.0,
-            heading_error: 0.0,
-            roll_angle: 0.0,
-            roll_angle_target: 0.0,
-            roll_angle_error: 0.0,
-            roll_angle_rate: 0.0,
-            roll_angle_rate_target: 0.0,
-            roll_angle_rate_error: 0.0,
-            aileron_setpoint: 0.0,
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Default, Serialize, Clone)]
 pub(super) struct AutoPilotConstants {
     pub heading_error_p: f64,
     pub heading_roll_error_d: f64,
@@ -225,13 +180,13 @@ impl AutoPilotState {
                 heading_error_integral: 0.0,
                 roll_error_integral: 0.0,
             },
-            horizontal_control_metrics: AutoPilotHorizontalMetrics::new(),
-            vertical_control_metrics: AutoPilotVerticalMetrics::new(),
+            horizontal_control_metrics: AutoPilotHorizontalMetrics::default(),
+            vertical_control_metrics: AutoPilotVerticalMetrics::default(),
             control_constants: AutoPilotConstants::new(),
         }
     }
 }
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Default, Serialize, Clone)]
 pub struct VerticalGuidance {
     pub vertical_mode: VerticalModes,
     pub velocity_setpoint: f64,
@@ -242,7 +197,7 @@ pub struct VerticalGuidance {
     pub pitch_error_integral: f64,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Default, Serialize, Clone)]
 pub struct HorizontalGuidance {
     pub horizontal_mode: HorizontalModes,
     pub heading_setpoint: f64,
@@ -257,11 +212,19 @@ pub enum VerticalModes {
     TECS,
 }
 
+impl Default for VerticalModes {
+    fn default() -> Self { VerticalModes::Standby }
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum HorizontalModes {
     Standby,
     WingsLevel,
     Heading,
+}
+
+impl Default for HorizontalModes {
+    fn default() -> Self { HorizontalModes::Standby }
 }
 
 impl AppState {
