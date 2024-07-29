@@ -79,7 +79,7 @@ pub(super) async fn execute_horizontal_guidance(
             let aileron: f64 = (-(plane_state_struct.roll * p + plane_state_struct.roll_rate * d))
                 .clamp(-MAX_AILERON, MAX_AILERON);
 
-            println!(
+            tracing::event!(tracing::Level::TRACE,
                 "Wings level mode - roll [deg]: {:.4}, roll_rate [deg/s]: {:.4}, aileron [0-1]: {:.4}",
                 plane_state_struct.roll, plane_state_struct.roll_rate, aileron
             );

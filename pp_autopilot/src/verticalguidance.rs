@@ -100,12 +100,11 @@ pub(super) async fn execute_vertical_guidance(
                 + kielevator * auto_pilot_state.vertical_guidance.pitch_error_integral)
                 .clamp(-MAX_ELEVATOR, MAX_ELEVATOR);
 
-            println!(
+            tracing::event!(tracing::Level::TRACE,
                 "TEC mode - pitch [deg]: {:.4}, target_pitch [deg]: {:.4}, pitch_error [deg]: {:.4}, pitch_rate: {:.4}, target_pitch_rate: {:.4}, pitch_rate_error: {:.4}, elevator {:.4}",
                 plane_state_struct.pitch, target_pitch, pitch_error, plane_state_struct.pitch_rate, target_pitch_rate, pitch_rate_error, elevator
             );
 
-            
             let vertical_metrics = AutoPilotVerticalMetrics {
                 altitude_msl: plane_state_struct.altitude_msl,
                 altitude_target: auto_pilot_state.vertical_guidance.altitude_setpoint,
@@ -130,7 +129,6 @@ pub(super) async fn execute_vertical_guidance(
             };
             
             app_state_proxy.update_vertical_control_metrics(vertical_metrics).await?;
-
             send_command(&client, CommandType::Elevator, elevator).await?;
         }
     }
