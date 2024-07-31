@@ -104,9 +104,9 @@ pub(super) struct AutoPilotHorizontalMetrics {
 pub(super) struct AutoPilotConstants {
     pub heading_error_p: f64,
     pub heading_roll_error_d: f64,
-    pub heading_p: f64,
-    pub heading_d: f64,
-    pub heading_i: f64,
+    pub roll_p: f64,
+    pub roll_d: f64,
+    pub roll_i: f64,
     pub tecs_cruise_throttle_slope: f64,
     pub tecs_cruise_throttle_base: f64,
     pub tecs_energy_p: f64,
@@ -116,6 +116,12 @@ pub(super) struct AutoPilotConstants {
     pub elevator_p: f64,
     pub elevator_d: f64,
     pub elevator_i: f64,
+    pub max_aileron: f64,
+    pub max_roll: f64,
+    pub max_roll_rate: f64,
+    pub max_elevator: f64,
+    pub max_pitch: f64,
+    pub max_pitch_rate: f64,
 }
 
 impl AutoPilotConstants {
@@ -123,9 +129,9 @@ impl AutoPilotConstants {
         AutoPilotConstants {
             heading_error_p: 0.4,
             heading_roll_error_d: 0.2,
-            heading_p: 0.01,
-            heading_d: 0.01,
-            heading_i: 0.001,
+            roll_p: 0.01,
+            roll_d: 0.01,
+            roll_i: 0.001,
             tecs_cruise_throttle_slope: 0.0000001,
             tecs_cruise_throttle_base: 0.48,
             tecs_energy_p: 0.001,
@@ -135,6 +141,12 @@ impl AutoPilotConstants {
             elevator_p: 0.15,
             elevator_d: 0.015,
             elevator_i: 0.0015,
+            max_aileron: 0.3,
+            max_roll: 30.0,
+            max_roll_rate: 3.0,
+            max_elevator: 0.3,
+            max_pitch: 15.0,
+            max_pitch_rate: 15.0,
         }
     }
 

@@ -12,11 +12,6 @@ pub(super) async fn execute_vertical_guidance(
     auto_pilot_state: &super::types::AutoPilotState,
     plane_state_struct: &super::types::PlaneStateStruct,
 ) -> anyhow::Result<()> {
-    const MAX_ELEVATOR: f64 = 0.3;
-
-    const MAX_PITCH: f64 = 15.0;
-    const MAX_PITCH_RATE: f64 = 15.0;
-
     const KNOTS_TO_METERS_PER_SECOND: f64 = 0.514444;
     const FEET_TO_METERS: f64 = 0.3048;
     const GRAVITATIONAL_CONSTANT: f64 = 0.981;
@@ -69,7 +64,6 @@ pub(super) async fn execute_vertical_guidance(
                 plane_state_struct.altitude_msl, plane_state_struct.v_ind, energy_error, auto_pilot_state.vertical_guidance.energy_error_integral, throttle
             );
 
-
             send_command(&client, CommandType::Throttle, throttle).await?;
 
             // pitch
@@ -79,7 +73,7 @@ pub(super) async fn execute_vertical_guidance(
             let target_pitch: f64 = ((auto_pilot_state.vertical_guidance.velocity_setpoint
                 - plane_state_struct.v_ind)
                 * kpitch)
-                .clamp(-MAX_PITCH, MAX_PITCH);
+                .clamp(-auto_pilot_state.control_constants.max_pitch, auto_pilot_state.control_constants.max_pitch);
             let pitch_error = target_pitch - plane_state_struct.pitch;
 
             app_state_proxy
@@ -88,7 +82,7 @@ pub(super) async fn execute_vertical_guidance(
 
             let kpr = auto_pilot_state.control_constants.pitch_rate_error_p;
 
-            let target_pitch_rate = (pitch_error * kpr).clamp(-MAX_PITCH_RATE, MAX_PITCH_RATE);
+            let target_pitch_rate = (pitch_error * kpr).clamp(-auto_pilot_state.control_constants.max_pitch_rate, auto_pilot_state.control_constants.max_pitch_rate);
             let pitch_rate_error = target_pitch_rate - plane_state_struct.pitch_rate;
 
             let kelevator = auto_pilot_state.control_constants.elevator_p;
@@ -98,7 +92,7 @@ pub(super) async fn execute_vertical_guidance(
             let elevator = (kelevator * pitch_error
                 + kdelevator * pitch_rate_error
                 + kielevator * auto_pilot_state.vertical_guidance.pitch_error_integral)
-                .clamp(-MAX_ELEVATOR, MAX_ELEVATOR);
+                .clamp(-auto_pilot_state.control_constants.max_elevator, auto_pilot_state.control_constants.max_elevator);
 
             tracing::event!(tracing::Level::TRACE,
                 "TEC mode - pitch [deg]: {:.4}, target_pitch [deg]: {:.4}, pitch_error [deg]: {:.4}, pitch_rate: {:.4}, target_pitch_rate: {:.4}, pitch_rate_error: {:.4}, elevator {:.4}",

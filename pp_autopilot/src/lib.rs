@@ -19,13 +19,13 @@ pub async fn run_app() -> anyhow::Result<()> {
     let app_state_proxy: AppStateProxy = AppStateProxy::new(tx_state);
 
     tokio::select! {
-        _ = app_state.process() => { }
-        _ = run_autopilot(app_state_proxy.clone()) => { }
-        _ = share_state_with_data_server(app_state_proxy.clone()) => { }
-        _ = httpserver::run_server(app_state_proxy.clone()) => { }
+        _ = app_state.process() => { event!(Level::INFO, "pp_autopilot app_state.process closed"); }
+        _ = run_autopilot(app_state_proxy.clone()) => { event!(Level::INFO, "pp_autopilot run_autopilot closed"); }
+        _ = share_state_with_data_server(app_state_proxy.clone()) => { event!(Level::INFO, "pp_autopilot share_state_with_data_server closed");  }
+        _ = httpserver::run_server(app_state_proxy.clone()) => { event!(Level::INFO, "pp_autopilot httpserver closed"); }
     }
 
-    event!(Level::INFO, "Planepilot closed");
+    event!(Level::INFO, "pp_autopilot closed");
 
     Ok(())
 }
@@ -171,25 +171,28 @@ async fn share_state_with_data_server(app_state_proxy: AppStateProxy) -> anyhow:
 
     loop {
         let state = app_state_proxy.get_auto_pilot_state().await?;
+        
+        if state.are_we_flying {
 
-        // AutoPilotState uses serde flatten to flatten into one JSON withouth nesting
-        let json = serde_json::json!({
-            "state_type": "AutoPilotState",
-            "state": state,
-        });
+            // AutoPilotState uses serde flatten to flatten into one JSON withouth nesting
+            let json = serde_json::json!({
+                "state_type": "AutoPilotState",
+                "state": state,
+            });
 
-        dbg!(&json);
+            let _res = match client
+                .post("http://localhost:3000/api/v1/state")
+                .json(&json)
+                .send()
+                .await
+            {
+                Ok(_res) => {}
+                Err(e) => return Err(e.into()),
+            };
 
-        let _res = match client
-            .post("http://localhost:3000/api/v1/state")
-            .json(&json)
-            .send()
-            .await
-        {
-            Ok(_res) => {}
-            Err(e) => return Err(e.into()),
-        };
+        }
         
         let _ = tokio::time::sleep(Duration::from_millis(1000)).await;
     }
+
 }

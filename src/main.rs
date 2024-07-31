@@ -1,5 +1,6 @@
 use crossterm::event::{Event, EventStream, KeyCode};
 use futures::StreamExt;
+use tracing::event;
 
 #[tokio::main]
 async fn main() {
@@ -32,6 +33,8 @@ async fn main() {
         // this is the process that will run to completion and then the tokio::select will cancel the rest
         _ = run_terminal() => { }
     }
+
+    event!(tracing::Level::INFO, "Planepilt closed");
 }
 
 // listents to terminal inputs, and breaks on "q"

@@ -1,9 +1,9 @@
 {
     "heading_error_p": 0.45,
     "heading_roll_error_d": 0.02,
-    "heading_p": 0.006,
-    "heading_d": 0.0004,
-    "heading_i": 0.00005,
+    "roll_p": 0.006,
+    "roll_d": 0.0004,
+    "roll_i": 0.00005,
     "tecs_cruise_throttle_slope": 0.0000001,
     "tecs_cruise_throttle_base": 0.48,
     "tecs_energy_p": 0.001,
@@ -12,5 +12,11 @@
     "pitch_rate_error_p": 0.3,
     "elevator_p": 0.15,
     "elevator_d": 0.015,
-    "elevator_i": 0.0015
+    "elevator_i": 0.0015,
+    "max_aileron": 0.3,
+    "max_roll": 30.0,
+    "max_roll_rate": 3.0,
+    "max_elevator": 0.3,
+    "max_pitch": 15.0,
+    "max_pitch_rate": 15.0
 }
