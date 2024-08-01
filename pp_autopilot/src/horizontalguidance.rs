@@ -69,7 +69,7 @@ pub(super) async fn execute_horizontal_guidance(
             app_state_proxy
                 .update_horizontal_control_metrics(horizontal_metrics)
                 .await?;
-            send_command(&client, CommandType::Aileron, aileron).await?;
+            send_command(app_state_proxy, &client, CommandType::Aileron, aileron).await?;
         }
         HorizontalModes::WingsLevel => {
             let p: f64 = auto_pilot_state.control_constants.roll_p;
@@ -97,7 +97,7 @@ pub(super) async fn execute_horizontal_guidance(
             };
             
             app_state_proxy.update_horizontal_control_metrics(horizontal_metrics).await?;
-            send_command(&client, CommandType::Aileron, aileron).await?;
+            send_command(app_state_proxy, &client, CommandType::Aileron, aileron).await?;
         }
     }
 

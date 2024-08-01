@@ -255,7 +255,7 @@ fn create_packet(
                 chunk.copy_from_slice(&value.to_le_bytes());
             }
 
-            event!(Level::TRACE, "PREL packet prepared: {:?}", packet);
+            event!(Level::TRACE, "PREL reset packet prepared: {:?}", packet);
             return Ok(packet);
         }
     }

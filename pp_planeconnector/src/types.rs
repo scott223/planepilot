@@ -51,16 +51,19 @@ impl AppState {
 
 // Define the proxy struct for interacting with the actor
 #[derive(Clone)]
+#[allow(dead_code)]
 pub(super) struct AppStateProxy {
+    pub service_adresses: (String, String, String),
     pub state_sender: mpsc::Sender<StateSignal>,
     pub command_sender: mpsc::Sender<Command>,
 }
 
 impl AppStateProxy {
-    pub fn new(s: mpsc::Sender<StateSignal>, c: mpsc::Sender<Command>) -> Self {
+    pub fn new(service_adresses: &(String, String, String), state_sender: mpsc::Sender<StateSignal>, command_sender: mpsc::Sender<Command>) -> Self {
         AppStateProxy {
-            state_sender: s,
-            command_sender: c,
+            service_adresses: service_adresses.clone(),
+            state_sender,
+            command_sender,
         }
     }
 

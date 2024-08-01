@@ -16,7 +16,7 @@ pub mod models;
 pub mod sse;
 pub mod utils;
 
-pub async fn run_app() -> anyhow::Result<()> {
+pub async fn run_app(_service_adresses: &(String, String, String)) -> anyhow::Result<()> {
     let config = utils::Config::default();
     let db: SqlitePool = utils::db::create_and_migrate_db(&config).await;
 

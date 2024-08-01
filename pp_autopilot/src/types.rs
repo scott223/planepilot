@@ -536,12 +536,15 @@ pub(super) enum StateSignal {
 
 #[derive(Clone)]
 pub(super) struct AppStateProxy {
+    pub service_adresses: (String, String, String),
     pub state_sender: mpsc::Sender<StateSignal>,
 }
 
 impl AppStateProxy {
-    pub fn new(tx: mpsc::Sender<StateSignal>) -> Self {
-        AppStateProxy { state_sender: tx }
+    pub fn new(service_adresses: &(String, String, String), state_sender: mpsc::Sender<StateSignal>) -> Self {
+        AppStateProxy { 
+            service_adresses: service_adresses.clone(),
+            state_sender, }
     }
 
     pub async fn refresh_autopilot_constants(&self) -> anyhow::Result<()> {

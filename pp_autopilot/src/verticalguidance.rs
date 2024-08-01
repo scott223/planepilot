@@ -64,7 +64,7 @@ pub(super) async fn execute_vertical_guidance(
                 plane_state_struct.altitude_msl, plane_state_struct.v_ind, energy_error, auto_pilot_state.vertical_guidance.energy_error_integral, throttle
             );
 
-            send_command(&client, CommandType::Throttle, throttle).await?;
+            send_command(app_state_proxy, &client, CommandType::Throttle, throttle).await?;
 
             // pitch
 
@@ -123,7 +123,7 @@ pub(super) async fn execute_vertical_guidance(
             };
             
             app_state_proxy.update_vertical_control_metrics(vertical_metrics).await?;
-            send_command(&client, CommandType::Elevator, elevator).await?;
+            send_command(app_state_proxy, &client, CommandType::Elevator, elevator).await?;
         }
     }
 

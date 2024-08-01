@@ -1,6 +1,6 @@
 
-const autopilotAddress = "http://localhost:3200/api/v1";
 const planeconnectorAddress = "http://localhost:3100/api/v1";
+const autopilotAddress = "http://localhost:3200/api/v1";
 
 //let activate_wings_level_button = document.querySelector("#activate_horizontal_wings_level_button");
 

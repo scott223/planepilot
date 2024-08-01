@@ -6,6 +6,13 @@ use tracing::event;
 async fn main() {
     dotenv::dotenv().ok();
 
+    //data server, planeconnector, autopilot
+    let service_adresses: (String, String, String) = (
+        "http://localhost:3000/api/v1".to_owned(),
+        "http://localhost:3100/api/v1".to_owned(),
+        "http://localhost:3200/api/v1".to_owned(),
+    );
+
     if std::env::var("RUST_LOG").is_err() {
         std::env::set_var("RUST_LOG", "INFO");
     }
@@ -25,9 +32,9 @@ async fn main() {
     logo();
 
     tokio::select! {
-        _ = pp_planeconnector::run_app() => { },
-        _ = pp_dataserver::run_app() => { },
-        _ = pp_autopilot::run_app() => { },
+        _ = pp_planeconnector::run_app(&service_adresses) => { },
+        _ = pp_dataserver::run_app(&service_adresses) => { },
+        _ = pp_autopilot::run_app(&service_adresses) => { },
 
         // process that runs a terminal, that looks for input (eg "q" press)
         // this is the process that will run to completion and then the tokio::select will cancel the rest

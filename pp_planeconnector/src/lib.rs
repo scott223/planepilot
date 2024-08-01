@@ -10,14 +10,14 @@ pub mod utils;
 pub mod xplanedatamap;
 pub mod xplaneudp;
 
-pub async fn run_app() -> anyhow::Result<()> {
+pub async fn run_app(service_adresses: &(String, String, String)) -> anyhow::Result<()> {
     // set up a channel for xplane commands, and state signals
     let (tx_command, rx_command) = mpsc::channel(32);
     let (tx_state, rx_state) = mpsc::channel(32);
 
     // set up the app state and a proxy, that is linked through a channel. we can then clone and share the proxy with all the different procsesses
     let app_state: AppState = AppState::new(rx_state);
-    let app_state_proxy: AppStateProxy = AppStateProxy::new(tx_state, tx_command);
+    let app_state_proxy: AppStateProxy = AppStateProxy::new(service_adresses, tx_state, tx_command);
 
     tokio::select! {
 
@@ -53,7 +53,7 @@ async fn share_state_with_data_server(app_state_proxy: AppStateProxy) -> anyhow:
             });
 
             let _res = match client
-                .post("http://localhost:3000/api/v1/state")
+                .post(app_state_proxy.service_adresses.0.to_owned() + "/state")
                 .json(json)
                 .send()
                 .await

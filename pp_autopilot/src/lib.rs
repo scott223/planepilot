@@ -11,12 +11,12 @@ pub mod types;
 pub mod utils;
 pub mod verticalguidance;
 
-pub async fn run_app() -> anyhow::Result<()> {
+pub async fn run_app(service_adresses: &(String, String, String)) -> anyhow::Result<()> {
     let (tx_state, rx_state) = mpsc::channel(8);
 
     // set up the app state and a proxy, that is linked through a channel. we can then clone and share the proxy with all the different procsesses
     let app_state: AppState = AppState::new(rx_state);
-    let app_state_proxy: AppStateProxy = AppStateProxy::new(tx_state);
+    let app_state_proxy: AppStateProxy = AppStateProxy::new(service_adresses, tx_state);
 
     tokio::select! {
         _ = app_state.process() => { event!(Level::INFO, "pp_autopilot app_state.process closed"); }
@@ -32,11 +32,12 @@ pub async fn run_app() -> anyhow::Result<()> {
 
 async fn run_autopilot(app_state_proxy: AppStateProxy) -> anyhow::Result<()> {
     const MILLISECONDS_PER_LOOP: u64 = 200;
+    let reqwest_client: reqwest::Client = reqwest::Client::new();
 
     let mut local_error_state: bool = true;
 
     loop {
-        match update_state().await {
+        match update_state(&app_state_proxy).await {
             Ok(plane_state) => {
                 app_state_proxy.set_plane_state(plane_state).await?;
                 event!(Level::TRACE, "Plane state updated");
@@ -74,28 +75,27 @@ async fn run_autopilot(app_state_proxy: AppStateProxy) -> anyhow::Result<()> {
         app_state_proxy.refresh_autopilot_constants().await?;
 
         if auto_pilot_state.are_we_flying {
-            let client: reqwest::Client = reqwest::Client::new();
 
-            let plane_state_struct: PlaneStateStruct =
+            let plane_state: PlaneStateStruct =
                 app_state_proxy.get_plane_state_as_struct().await?;
 
             let dt: f64 = MILLISECONDS_PER_LOOP as f64 / 1000.0;
 
             verticalguidance::execute_vertical_guidance(
                 dt,
-                &client,
+                &reqwest_client,
                 &app_state_proxy,
                 &auto_pilot_state,
-                &plane_state_struct,
+                &plane_state,
             )
             .await?;
 
             horizontalguidance::execute_horizontal_guidance(
                 dt,
-                &client,
+                &reqwest_client,
                 &app_state_proxy,
                 &auto_pilot_state,
-                &plane_state_struct,
+                &plane_state,
             )
             .await?
         }
@@ -105,6 +105,7 @@ async fn run_autopilot(app_state_proxy: AppStateProxy) -> anyhow::Result<()> {
 }
 
 async fn send_command(
+    app_state_proxy: &AppStateProxy,
     client: &reqwest::Client,
     command_type: types::CommandType,
     value: f64,
@@ -129,7 +130,7 @@ async fn send_command(
     );
 
     let _res = match client
-        .post("http://localhost:3100/api/v1/command")
+        .post(app_state_proxy.service_adresses.1.to_owned() + "/command")
         .json(&map)
         .send()
         .await
@@ -139,8 +140,8 @@ async fn send_command(
     };
 }
 
-async fn update_state() -> anyhow::Result<HashMap<String, Value>> {
-    let res = match reqwest::get("http://localhost:3100/api/v1/state").await {
+async fn update_state(app_state_proxy: &AppStateProxy) -> anyhow::Result<HashMap<String, Value>> {
+    let res = match reqwest::get(app_state_proxy.service_adresses.1.to_owned() + "/state").await {
         Ok(res) => res,
         Err(_) => {
             return Err(anyhow::Error::new(
@@ -181,7 +182,7 @@ async fn share_state_with_data_server(app_state_proxy: AppStateProxy) -> anyhow:
             });
 
             let _res = match client
-                .post("http://localhost:3000/api/v1/state")
+                .post(app_state_proxy.service_adresses.0.to_owned() + "/state")
                 .json(&json)
                 .send()
                 .await
