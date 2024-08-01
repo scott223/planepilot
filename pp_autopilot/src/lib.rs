@@ -30,6 +30,8 @@ pub async fn run_app(service_adresses: &(String, String, String)) -> anyhow::Res
     Ok(())
 }
 
+//
+
 async fn run_autopilot(app_state_proxy: AppStateProxy) -> anyhow::Result<()> {
     const MILLISECONDS_PER_LOOP: u64 = 200;
     let reqwest_client: reqwest::Client = reqwest::Client::new();
@@ -129,15 +131,15 @@ async fn send_command(
         Value::Number(Number::from_f64(value).unwrap()),
     );
 
-    let _res = match client
+    match client
         .post(app_state_proxy.service_adresses.1.to_owned() + "/command")
         .json(&map)
         .send()
         .await
     {
-        Ok(_res) => return Ok(()),
-        Err(e) => return Err(e.into()),
-    };
+        Ok(_res) => Ok(()),
+        Err(e) => Err(e.into()),
+    }
 }
 
 async fn update_state(app_state_proxy: &AppStateProxy) -> anyhow::Result<HashMap<String, Value>> {
@@ -157,10 +159,10 @@ async fn update_state(app_state_proxy: &AppStateProxy) -> anyhow::Result<HashMap
                 //todo check the recent update datetime, and if not recent, return error
                 return Err(anyhow::Error::new(SpecificErrors::StateNotUpdatedRecently));
             }
-            return Ok(state);
+            Ok(state)
         }
         _ => {
-            return Err(anyhow::Error::new(
+            Err(anyhow::Error::new(
                 SpecificErrors::PlaneConnectorReturnedError,
             ))
         }
@@ -181,7 +183,7 @@ async fn share_state_with_data_server(app_state_proxy: AppStateProxy) -> anyhow:
                 "state": state,
             });
 
-            let _res = match client
+            match client
                 .post(app_state_proxy.service_adresses.0.to_owned() + "/state")
                 .json(&json)
                 .send()

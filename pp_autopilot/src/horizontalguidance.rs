@@ -56,7 +56,7 @@ pub(super) async fn execute_horizontal_guidance(
             let horizontal_metrics: AutoPilotHorizontalMetrics = AutoPilotHorizontalMetrics {
                 heading: plane_state_struct.heading,
                 heading_target: auto_pilot_state.horizontal_guidance.heading_setpoint,
-                heading_error: heading_error,
+                heading_error,
                 roll_angle: plane_state_struct.roll,
                 roll_angle_target: target_roll_angle,
                 roll_angle_error: roll_error,
@@ -69,7 +69,7 @@ pub(super) async fn execute_horizontal_guidance(
             app_state_proxy
                 .update_horizontal_control_metrics(horizontal_metrics)
                 .await?;
-            send_command(app_state_proxy, &client, CommandType::Aileron, aileron).await?;
+            send_command(app_state_proxy, client, CommandType::Aileron, aileron).await?;
         }
         HorizontalModes::WingsLevel => {
             let p: f64 = auto_pilot_state.control_constants.roll_p;
@@ -97,7 +97,7 @@ pub(super) async fn execute_horizontal_guidance(
             };
             
             app_state_proxy.update_horizontal_control_metrics(horizontal_metrics).await?;
-            send_command(app_state_proxy, &client, CommandType::Aileron, aileron).await?;
+            send_command(app_state_proxy, client, CommandType::Aileron, aileron).await?;
         }
     }
 

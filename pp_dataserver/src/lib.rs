@@ -1,3 +1,5 @@
+#![warn(unused_extern_crates)]
+
 use axum::{
     http::Method,
     response::sse::Event as SseEvent,

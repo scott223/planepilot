@@ -218,25 +218,19 @@ pub struct HorizontalGuidance {
     pub roll_error_integral: f64,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub enum VerticalModes {
+    #[default]
     Standby,
     TECS,
 }
 
-impl Default for VerticalModes {
-    fn default() -> Self { VerticalModes::Standby }
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub enum HorizontalModes {
+    #[default]
     Standby,
     WingsLevel,
     Heading,
-}
-
-impl Default for HorizontalModes {
-    fn default() -> Self { HorizontalModes::Standby }
 }
 
 impl AppState {
@@ -369,12 +363,7 @@ impl AppState {
                     let _ = result_sender.send(true);
                 }
                 StateSignal::ActivateStandbyVelocity { result_sender } => {
-                    let temp = self.auto_pilot_state.vertical_guidance.velocity_setpoint;
-
-                    self.auto_pilot_state.vertical_guidance.velocity_setpoint =
-                        self.auto_pilot_state.vertical_guidance.velocity_standby;
-
-                    self.auto_pilot_state.vertical_guidance.velocity_standby = temp;
+                    std::mem::swap(&mut self.auto_pilot_state.vertical_guidance.velocity_setpoint, &mut self.auto_pilot_state.vertical_guidance.velocity_standby);
 
                     let _ = result_sender.send(true);
                 }
@@ -387,11 +376,7 @@ impl AppState {
                     let _ = result_sender.send(true);
                 }
                 StateSignal::ActivateStandbyAltitude { result_sender } => {
-                    let temp = self.auto_pilot_state.vertical_guidance.altitude_setpoint;
-
-                    self.auto_pilot_state.vertical_guidance.altitude_setpoint =
-                        self.auto_pilot_state.vertical_guidance.altitude_standby;
-                    self.auto_pilot_state.vertical_guidance.altitude_standby = temp;
+                    std::mem::swap(&mut self.auto_pilot_state.vertical_guidance.altitude_setpoint, &mut self.auto_pilot_state.vertical_guidance.altitude_standby);
 
                     let _ = result_sender.send(true);
                 }
@@ -558,8 +543,8 @@ impl AppStateProxy {
             .await
             .unwrap_or_else(|_| panic!("Failed to receive result from auto pilot state"))
         {
-            true => return Ok(()),
-            _ => return Err(anyhow!("Error with receiving result from autopilot state")),
+            true => Ok(()),
+            _ => Err(anyhow!("Error with receiving result from autopilot state")),
         }
     }
 
@@ -577,8 +562,8 @@ impl AppStateProxy {
             .await
             .unwrap_or_else(|_| panic!("Failed to receive result from auto pilot state"))
         {
-            true => return Ok(()),
-            _ => return Err(anyhow!("Error with receiving result from autopilot state")),
+            true => Ok(()),
+            _ => Err(anyhow!("Error with receiving result from autopilot state")),
         }
     }
 
@@ -622,8 +607,8 @@ impl AppStateProxy {
             .await
             .unwrap_or_else(|_| panic!("Failed to receive result from auto pilot state"))
         {
-            true => return Ok(()),
-            _ => return Err(anyhow!("Error with receiving result from autopilot state")),
+            true => Ok(()),
+            _ => Err(anyhow!("Error with receiving result from autopilot state")),
         }
     }
 
@@ -638,8 +623,8 @@ impl AppStateProxy {
             .await
             .unwrap_or_else(|_| panic!("Failed to receive result from auto pilot state"))
         {
-            true => return Ok(()),
-            _ => return Err(anyhow!("Error with receiving result from autopilot state")),
+            true => Ok(()),
+            _ => Err(anyhow!("Error with receiving result from autopilot state")),
         }
     }
 
@@ -664,7 +649,7 @@ impl AppStateProxy {
         self.state_sender
             .send(StateSignal::SetStandbyHeading {
                 standby_heading: heading,
-                result_sender: result_sender,
+                result_sender,
             })
             .await?;
 
@@ -672,8 +657,8 @@ impl AppStateProxy {
             .await
             .unwrap_or_else(|_| panic!("Failed to receive result from auto pilot state"))
         {
-            true => return Ok(()),
-            _ => return Err(anyhow!("Error with receiving result from autopilot state")),
+            true => Ok(()),
+            _ => Err(anyhow!("Error with receiving result from autopilot state")),
         }
     }
 
@@ -681,7 +666,7 @@ impl AppStateProxy {
         let (result_sender, result_receiver) = oneshot::channel();
         self.state_sender
             .send(StateSignal::ActivateStandbyHeading {
-                result_sender: result_sender,
+                result_sender,
             })
             .await?;
 
@@ -689,8 +674,8 @@ impl AppStateProxy {
             .await
             .unwrap_or_else(|_| panic!("Failed to receive result from auto pilot state"))
         {
-            true => return Ok(()),
-            _ => return Err(anyhow!("Error with receiving result from autopilot state")),
+            true => Ok(()),
+            _ => Err(anyhow!("Error with receiving result from autopilot state")),
         }
     }
 
@@ -698,7 +683,7 @@ impl AppStateProxy {
         let (result_sender, result_receiver) = oneshot::channel();
         self.state_sender
             .send(StateSignal::SetHorizontalGuidanceToStandbyMode {
-                result_sender: result_sender,
+                result_sender,
             })
             .await?;
 
@@ -706,8 +691,8 @@ impl AppStateProxy {
             .await
             .unwrap_or_else(|_| panic!("Failed to receive result from auto pilot state"))
         {
-            true => return Ok(()),
-            _ => return Err(anyhow!("Error with receiving result from autopilot state")),
+            true => Ok(()),
+            _ => Err(anyhow!("Error with receiving result from autopilot state")),
         }
     }
 
@@ -715,7 +700,7 @@ impl AppStateProxy {
         let (result_sender, result_receiver) = oneshot::channel();
         self.state_sender
             .send(StateSignal::SetHorizontalGuidanceToWingsLevelMode {
-                result_sender: result_sender,
+                result_sender,
             })
             .await?;
 
@@ -723,8 +708,8 @@ impl AppStateProxy {
             .await
             .unwrap_or_else(|_| panic!("Failed to receive result from auto pilot state"))
         {
-            true => return Ok(()),
-            _ => return Err(anyhow!("Error with receiving result from autopilot state")),
+            true => Ok(()),
+            _ => Err(anyhow!("Error with receiving result from autopilot state")),
         }
     }
 
@@ -732,7 +717,7 @@ impl AppStateProxy {
         let (result_sender, result_receiver) = oneshot::channel();
         self.state_sender
             .send(StateSignal::SetHorizontalGuidanceToHeadingMode {
-                result_sender: result_sender,
+                result_sender,
             })
             .await?;
 
@@ -740,8 +725,8 @@ impl AppStateProxy {
             .await
             .unwrap_or_else(|_| panic!("Failed to receive result from auto pilot state"))
         {
-            true => return Ok(()),
-            _ => return Err(anyhow!("Error with receiving result from autopilot state")),
+            true => Ok(()),
+            _ => Err(anyhow!("Error with receiving result from autopilot state")),
         }
     }
 
@@ -759,8 +744,8 @@ impl AppStateProxy {
             .await
             .unwrap_or_else(|_| panic!("Failed to receive result from auto pilot state"))
         {
-            true => return Ok(()),
-            _ => return Err(anyhow!("Error with receiving result from autopilot state")),
+            true => Ok(()),
+            _ => Err(anyhow!("Error with receiving result from autopilot state")),
         }
     }
 
@@ -778,8 +763,8 @@ impl AppStateProxy {
             .await
             .unwrap_or_else(|_| panic!("Failed to receive result from auto pilot state"))
         {
-            true => return Ok(()),
-            _ => return Err(anyhow!("Error with receiving result from autopilot state")),
+            true => Ok(()),
+            _ => Err(anyhow!("Error with receiving result from autopilot state")),
         }
     }
 
@@ -790,7 +775,7 @@ impl AppStateProxy {
         self.state_sender
             .send(StateSignal::SetStandbyVelocity {
                 standby_velocity: velocity,
-                result_sender: result_sender,
+                result_sender,
             })
             .await?;
 
@@ -798,8 +783,8 @@ impl AppStateProxy {
             .await
             .unwrap_or_else(|_| panic!("Failed to receive result from auto pilot state"))
         {
-            true => return Ok(()),
-            _ => return Err(anyhow!("Error with receiving result from autopilot state")),
+            true => Ok(()),
+            _ => Err(anyhow!("Error with receiving result from autopilot state")),
         }
     }
 
@@ -807,7 +792,7 @@ impl AppStateProxy {
         let (result_sender, result_receiver) = oneshot::channel();
         self.state_sender
             .send(StateSignal::ActivateStandbyVelocity {
-                result_sender: result_sender,
+                result_sender,
             })
             .await?;
 
@@ -815,8 +800,8 @@ impl AppStateProxy {
             .await
             .unwrap_or_else(|_| panic!("Failed to receive result from auto pilot state"))
         {
-            true => return Ok(()),
-            _ => return Err(anyhow!("Error with receiving result from autopilot state")),
+            true => Ok(()),
+            _ => Err(anyhow!("Error with receiving result from autopilot state")),
         }
     }
 
@@ -825,7 +810,7 @@ impl AppStateProxy {
         self.state_sender
             .send(StateSignal::SetStandbyAltitude {
                 standby_altitude: altitude,
-                result_sender: result_sender,
+                result_sender,
             })
             .await?;
 
@@ -833,8 +818,8 @@ impl AppStateProxy {
             .await
             .unwrap_or_else(|_| panic!("Failed to receive result from auto pilot state"))
         {
-            true => return Ok(()),
-            _ => return Err(anyhow!("Error with receiving result from autopilot state")),
+            true => Ok(()),
+            _ => Err(anyhow!("Error with receiving result from autopilot state")),
         }
     }
 
@@ -842,7 +827,7 @@ impl AppStateProxy {
         let (result_sender, result_receiver) = oneshot::channel();
         self.state_sender
             .send(StateSignal::ActivateStandbyAltitude {
-                result_sender: result_sender,
+                result_sender,
             })
             .await?;
 
@@ -850,8 +835,8 @@ impl AppStateProxy {
             .await
             .unwrap_or_else(|_| panic!("Failed to receive result from auto pilot state"))
         {
-            true => return Ok(()),
-            _ => return Err(anyhow!("Error with receiving result from autopilot state")),
+            true => Ok(()),
+            _ => Err(anyhow!("Error with receiving result from autopilot state")),
         }
     }
 
@@ -859,7 +844,7 @@ impl AppStateProxy {
         let (result_sender, result_receiver) = oneshot::channel();
         self.state_sender
             .send(StateSignal::SetVerticalGuidanceToStandbyMode {
-                result_sender: result_sender,
+                result_sender,
             })
             .await?;
 
@@ -867,8 +852,8 @@ impl AppStateProxy {
             .await
             .unwrap_or_else(|_| panic!("Failed to receive result from auto pilot state"))
         {
-            true => return Ok(()),
-            _ => return Err(anyhow!("Error with receiving result from autopilot state")),
+            true => Ok(()),
+            _ => Err(anyhow!("Error with receiving result from autopilot state")),
         }
     }
 
@@ -877,7 +862,7 @@ impl AppStateProxy {
         let (result_sender, result_receiver) = oneshot::channel();
         self.state_sender
             .send(StateSignal::SetVerticalGuidanceToTECSMode {
-                result_sender: result_sender,
+                result_sender,
             })
             .await?;
 
@@ -885,8 +870,8 @@ impl AppStateProxy {
             .await
             .unwrap_or_else(|_| panic!("Failed to receive result from auto pilot state"))
         {
-            true => return Ok(()),
-            _ => return Err(anyhow!("Error with receiving result from autopilot state")),
+            true => Ok(()),
+            _ => Err(anyhow!("Error with receiving result from autopilot state")),
         }
     }
 
@@ -904,8 +889,8 @@ impl AppStateProxy {
             .await
             .unwrap_or_else(|_| panic!("Failed to receive result from auto pilot state"))
         {
-            true => return Ok(()),
-            _ => return Err(anyhow!("Error with receiving result from autopilot state")),
+            true => Ok(()),
+            _ => Err(anyhow!("Error with receiving result from autopilot state")),
         }
     }
 
@@ -923,8 +908,8 @@ impl AppStateProxy {
             .await
             .unwrap_or_else(|_| panic!("Failed to receive result from auto pilot state"))
         {
-            true => return Ok(()),
-            _ => return Err(anyhow!("Error with receiving result from autopilot state")),
+            true => Ok(()),
+            _ => Err(anyhow!("Error with receiving result from autopilot state")),
         }
     }
 
@@ -945,8 +930,8 @@ impl AppStateProxy {
             .await
             .unwrap_or_else(|_| panic!("Failed to receive result from auto pilot state"))
         {
-            true => return Ok(()),
-            _ => return Err(anyhow!("Error with receiving result from autopilot state")),
+            true => Ok(()),
+            _ => Err(anyhow!("Error with receiving result from autopilot state")),
         }
     }
     
@@ -967,8 +952,8 @@ impl AppStateProxy {
             .await
             .unwrap_or_else(|_| panic!("Failed to receive result from auto pilot state"))
         {
-            true => return Ok(()),
-            _ => return Err(anyhow!("Error with receiving result from autopilot state")),
+            true => Ok(()),
+            _ => Err(anyhow!("Error with receiving result from autopilot state")),
         }
     }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "pp_planeconnector"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["Scott Brugmans <scott.brugmans@gmail.com>"]
 repository = "https://github.com/scott223/planepilot"
@@ -9,39 +9,23 @@ license = "MIT"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-dotenv = "0.15.0"
-tokio = { version = "1.37.0", features = ["full"] }
-tokio-util = "0.7.11"
 
-reqwest = { version = "0.12.4", features = ["json"] }
-serde = { version = "1.0.197", features = ["derive"] }
-serde_json = "1.0.115"
-crossterm = {version = "0.27", features = ['events', 'event-stream'] }
+dotenv = { workspace = true}
+tokio = { workspace = true }
+tokio-util = { workspace = true }
 
-anyhow = "1.0.81"
-tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-chrono = { version = "0.4.37", features = ["serde"] }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+crossterm = { workspace = true }
 
-futures = "0.3"
-futures-timer = "3.0.3"
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+chrono = { workspace = true }
 
-axum = { version = "0.7.5", features = ["http2", "macros"] }
-tower-http = { version = "0.5.2", features = ["trace", "cors",] }
+futures = { workspace = true }
+futures-timer = { workspace = true }
 
-[profile.release]
-lto = true          # Enable link-time optimization
-codegen-units = 1   # Reduce number of codegen units to increase optimizations
-panic = 'abort'     # Abort on panic
-strip = true        # Strip symbols from binary*
-debug = false
-opt-level=3
-
-[profile.dev]
-strip = false
-opt-level=0
-debug=true
-
-[profile.dev.package."*"]
-opt-level=3
-debug=true
+axum = { workspace = true }
+tower-http = { workspace = true }

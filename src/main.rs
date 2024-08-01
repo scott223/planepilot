@@ -1,3 +1,5 @@
+#![warn(unused_extern_crates)]
+
 use crossterm::event::{Event, EventStream, KeyCode};
 use futures::StreamExt;
 use tracing::event;
@@ -68,7 +70,7 @@ async fn run_terminal() -> Result<(), ()> {
     Ok(())
 }
 
-fn logo() -> () {
+fn logo() {
     println!(
         r"
                                 |

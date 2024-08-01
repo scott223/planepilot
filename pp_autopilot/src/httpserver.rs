@@ -81,13 +81,13 @@ async fn switch_key(
     match res {
         Ok(_) => {
             event!(Level::INFO, "Activated value for {}", key);
-            return Ok(StatusCode::OK);
+            Ok(StatusCode::OK)
         }
         Err(e) => {
             event!(Level::ERROR, "Cannot activate value for: {:?}", e);
-            return Ok(StatusCode::INTERNAL_SERVER_ERROR);
+            Ok(StatusCode::INTERNAL_SERVER_ERROR)
         }
-    };
+    }
 }
 
 async fn set_key(
@@ -106,13 +106,13 @@ async fn set_key(
     match res {
         Ok(_) => {
             event!(Level::INFO, "Standy value set ({}, {})", key, value);
-            return Ok(StatusCode::OK);
+            Ok(StatusCode::OK)
         }
         Err(e) => {
             event!(Level::ERROR, "Cannot set value: {:?}", e);
-            return Ok(StatusCode::INTERNAL_SERVER_ERROR);
+            Ok(StatusCode::INTERNAL_SERVER_ERROR)
         }
-    };
+    }
 }
 
 async fn activate_mode(
@@ -138,11 +138,11 @@ async fn activate_mode(
                 direction,
                 mode
             );
-            return Ok(StatusCode::OK);
+            Ok(StatusCode::OK)
         }
         Err(e) => {
             event!(Level::ERROR, "Cannot set autopilot mode: {:?}", e);
-            return Ok(StatusCode::INTERNAL_SERVER_ERROR);
+            Ok(StatusCode::INTERNAL_SERVER_ERROR)
         }
-    };
+    }
 }
