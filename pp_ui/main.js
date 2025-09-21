@@ -43,7 +43,7 @@ async function updateUI() {
 
 	//horizontal
 
-	switch (state.horizontal_guidance.horizontal_mode) {
+	switch (state.horizontal_mode) {
 	case "Standby":
 		activate_horizontal_standby_button.classList.add("btn-success");
 		activate_horizontal_wings_level_button.classList.add("btn-outline-success")
@@ -60,15 +60,15 @@ async function updateUI() {
 		activate_horizontal_heading_button.classList.add("btn-success")		
 	}
 
-	heading_active.innerHTML = state.horizontal_guidance.heading_setpoint;
+	heading_active.innerHTML = state.heading_setpoint;
 
 	if (document.activeElement !== heading_standby) {
-		heading_standby.value = state.horizontal_guidance.heading_standby;
+		heading_standby.value = state.heading_standby;
 	}
 
 	//vertical
 
-	switch (state.vertical_guidance.vertical_mode) {
+	switch (state.vertical_mode) {
 	case "Standby":
 		activate_vertical_standby_button.classList.add("btn-success");
 		activate_vertical_TECS_button.classList.add("btn-outline-success");

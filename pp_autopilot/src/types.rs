@@ -40,10 +40,12 @@ pub(super) struct AppState {
 pub(super) struct PlaneStateStruct {
     pub v_ind: f64,
     pub altitude_msl: f64,
+    pub vpath: f64,
     pub roll: f64,
     pub roll_rate: f64,
     pub pitch: f64,
     pub pitch_rate: f64,
+    pub gload_axial: f64,
     pub heading: f64,
 }
 
@@ -225,7 +227,9 @@ pub enum VerticalModes {
 }
 
 impl Default for VerticalModes {
-    fn default() -> Self { VerticalModes::Standby }
+    fn default() -> Self {
+        VerticalModes::Standby
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -236,7 +240,9 @@ pub enum HorizontalModes {
 }
 
 impl Default for HorizontalModes {
-    fn default() -> Self { HorizontalModes::Standby }
+    fn default() -> Self {
+        HorizontalModes::Standby
+    }
 }
 
 impl AppState {
@@ -282,10 +288,17 @@ impl AppState {
                             .unwrap()
                             .as_f64()
                             .unwrap(),
+                        vpath: self.plane_state.get("vpath").unwrap().as_f64().unwrap(),
                         roll: self.plane_state.get("roll").unwrap().as_f64().unwrap(),
                         roll_rate: self.plane_state.get("P").unwrap().as_f64().unwrap(),
                         pitch: self.plane_state.get("pitch").unwrap().as_f64().unwrap(),
                         pitch_rate: self.plane_state.get("Q").unwrap().as_f64().unwrap(),
+                        gload_axial: self
+                            .plane_state
+                            .get("Gload_axial")
+                            .unwrap()
+                            .as_f64()
+                            .unwrap(),
                         heading: self
                             .plane_state
                             .get("heading_true")
@@ -441,7 +454,6 @@ impl AppState {
                     self.auto_pilot_state.vertical_control_metrics = metrics;
                     let _ = result_sender.send(true);
                 }
-                
             }
         }
     }
@@ -541,10 +553,14 @@ pub(super) struct AppStateProxy {
 }
 
 impl AppStateProxy {
-    pub fn new(service_adresses: &(String, String, String), state_sender: mpsc::Sender<StateSignal>) -> Self {
-        AppStateProxy { 
+    pub fn new(
+        service_adresses: &(String, String, String),
+        state_sender: mpsc::Sender<StateSignal>,
+    ) -> Self {
+        AppStateProxy {
             service_adresses: service_adresses.clone(),
-            state_sender, }
+            state_sender,
+        }
     }
 
     pub async fn refresh_autopilot_constants(&self) -> anyhow::Result<()> {
@@ -949,7 +965,7 @@ impl AppStateProxy {
             _ => return Err(anyhow!("Error with receiving result from autopilot state")),
         }
     }
-    
+
     pub async fn update_vertical_control_metrics(
         &self,
         metrics: AutoPilotVerticalMetrics,
