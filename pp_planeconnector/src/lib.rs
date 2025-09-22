@@ -1,3 +1,5 @@
+#![warn(unused_extern_crates)]
+
 use std::time::Duration;
 
 use tokio::sync::mpsc;
@@ -52,7 +54,7 @@ async fn share_state_with_data_server(app_state_proxy: AppStateProxy) -> anyhow:
 
             });
 
-            let _res = match client
+            match client
                 .post(app_state_proxy.service_adresses.0.to_owned() + "/state")
                 .json(json)
                 .send()
@@ -60,7 +62,7 @@ async fn share_state_with_data_server(app_state_proxy: AppStateProxy) -> anyhow:
             {
                 Ok(_res) => {}
                 Err(e) => return Err(e.into()),
-            };
+            }
         }
 
         let _ = tokio::time::sleep(Duration::from_millis(1000)).await;

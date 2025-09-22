@@ -26,7 +26,7 @@ pub(super) async fn execute_vertical_guidance(
 
             let Kti: f64 = 0.3;
 
-            let throttle: f64 = Kti * (flight_path_error + velocity_over_g).clamp(0.0, 1.o);
+            let throttle: f64 = Kti * (flight_path_error + velocity_over_g).clamp(0.0, 1.0);
 
             println!(
                 "TEC mode - alitude [ft]: {:.4}, Vind [kt]: {:.4}, flight_path_error: {:.4}, velocity_g: {:.4}, thrust: {:.4}",
@@ -83,7 +83,7 @@ pub(super) async fn execute_vertical_guidance(
                 plane_state_struct.altitude_msl, plane_state_struct.v_ind, energy_error, auto_pilot_state.vertical_guidance.energy_error_integral, throttle
             );
 
-            send_command(app_state_proxy, &client, CommandType::Throttle, throttle).await?;
+            send_command(app_state_proxy, client, CommandType::Throttle, throttle).await?;
 
             // pitch
 
@@ -129,22 +129,26 @@ pub(super) async fn execute_vertical_guidance(
                 kinetic_energy_target: target_kinetic,
                 potential_energy: potential,
                 potential_energy_target: target_potential,
-                energy: energy,
+                energy,
                 energy_target: target_energy,
-                energy_error: energy_error,
+                energy_error,
                 pitch: plane_state_struct.pitch,
                 pitch_target: target_pitch,
-                pitch_error: pitch_error,
+                pitch_error,
                 pitch_rate: plane_state_struct.pitch_rate,
                 pitch_rate_target: target_pitch_rate,
-                pitch_rate_error: pitch_rate_error,
+                pitch_rate_error,
                 elevator_setpoint: elevator,
             };
 
             app_state_proxy.update_vertical_control_metrics(vertical_metrics).await?;
+<<<<<<< HEAD
             send_command(app_state_proxy, &client, CommandType::Elevator, elevator).await?;
 
             */
+=======
+            send_command(app_state_proxy, client, CommandType::Elevator, elevator).await?;
+>>>>>>> 30818d69370971276d28d4a622e3022d7a9041d4
         }
     }
 

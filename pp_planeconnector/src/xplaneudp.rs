@@ -124,11 +124,11 @@ pub(super) async fn listen_to_xplane(app_state_proxy: AppStateProxy) -> anyhow::
 
 // Translates 32 bytes to 8 floats
 
-fn translate_bytes_to_floats(data_bytes: &[u8; 8 * FLOAT_LEN]) -> anyhow::Result<Vec<f32>> {
+fn translate_bytes_to_floats(data_bytes: &[u8; 8 * 4]) -> anyhow::Result<Vec<f32>> {
     let mut floats: Vec<f32> = Vec::with_capacity(8);
 
     // chop the data in chunks and convert to a f32, using Little Endian
-    for f in data_bytes.chunks(FLOAT_LEN) {
+    for f in data_bytes.chunks(4) {
         floats.push(f32::from_le_bytes(match f.try_into() {
             Ok(b) => b,
             Err(r) => return Err(r.into()),
@@ -136,6 +136,20 @@ fn translate_bytes_to_floats(data_bytes: &[u8; 8 * FLOAT_LEN]) -> anyhow::Result
     }
 
     Ok(floats)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_translate_bytes_to_floats() {
+
+        let bytes: [u8; 8*4] = [0x00, 0x00, 0x48, 0x41, 0x00, 0x00, 0x48, 0x41, 0x00, 0x00, 0x48, 0x41, 0x00, 0x00, 0x48, 0x41, 0x00, 0x00, 0x48, 0x41, 0x00, 0x00, 0x48, 0x41, 0x00, 0x00, 0x48, 0x41, 0x00, 0x00, 0x48, 0x41];
+        let vec: Vec<f32> = [12.5, 12.5, 12.5, 12.5, 12.5, 12.5, 12.5, 12.5].to_vec();
+
+        assert_eq!(translate_bytes_to_floats(&bytes).unwrap(), vec);
+    }
 }
 
 // Maps values into the plane_state, based on the data map index
@@ -157,7 +171,7 @@ fn map_values(
 
                         // apply a transformation, if there is one, e.g. going from rad/s to deg/s
                         if let Some(t) = data.transformation {
-                            value = value * t;
+                            value *= t;
                         }
 
                         plane_state.insert(
@@ -220,7 +234,7 @@ fn create_packet(
                 chunk.copy_from_slice(&(value as f32).to_le_bytes());
             }
 
-            return Ok(packet);
+            Ok(packet)
         }
         PacketType::PREL => {
             /*
@@ -256,7 +270,7 @@ fn create_packet(
             }
 
             event!(Level::TRACE, "PREL reset packet prepared: {:?}", packet);
-            return Ok(packet);
+            Ok(packet)
         }
     }
 }
