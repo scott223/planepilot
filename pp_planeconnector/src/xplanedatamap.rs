@@ -44,6 +44,46 @@ pub fn data_map() -> Vec<DataIndex> {
             ],
         },
         DataIndex {
+            index: 4_u8,
+            data: vec![
+                DataStructure {
+                    name: "Mach".to_string(),
+                    data_type: DataType::Float,
+                    transformation: None,
+                },
+                DataStructure {
+                    name: "not_used".to_string(),
+                    data_type: DataType::Empty,
+                    transformation: None,
+                },
+                DataStructure {
+                    name: "VVI".to_string(),
+                    data_type: DataType::Float,
+                    transformation: None,
+                },
+                DataStructure {
+                    name: "not_used".to_string(),
+                    data_type: DataType::Float,
+                    transformation: None,
+                },
+                DataStructure {
+                    name: "Gload_normal".to_string(),
+                    data_type: DataType::Float,
+                    transformation: None,
+                },
+                DataStructure {
+                    name: "Gload_axial".to_string(),
+                    data_type: DataType::Float,
+                    transformation: None,
+                },
+                DataStructure {
+                    name: "Gload_side".to_string(),
+                    data_type: DataType::Float,
+                    transformation: None,
+                },
+            ],
+        },
+        DataIndex {
             index: 11_u8,
             data: vec![
                 DataStructure {
@@ -175,6 +215,31 @@ pub fn data_map() -> Vec<DataIndex> {
                     name: "R".to_string(),
                     data_type: DataType::Float,
                     transformation: Some(57.2958),
+                },
+            ],
+        },
+        DataIndex {
+            index: 18_u8,
+            data: vec![
+                DataStructure {
+                    name: "alpha".to_string(),
+                    data_type: DataType::Float,
+                    transformation: None,
+                },
+                DataStructure {
+                    name: "beta".to_string(),
+                    data_type: DataType::Float,
+                    transformation: None,
+                },
+                DataStructure {
+                    name: "hpath".to_string(),
+                    data_type: DataType::Float,
+                    transformation: None,
+                },
+                DataStructure {
+                    name: "vpath".to_string(),
+                    data_type: DataType::Float,
+                    transformation: None,
                 },
             ],
         },

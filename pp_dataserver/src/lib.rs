@@ -53,14 +53,16 @@ pub async fn run_app(_service_adresses: &(String, String, String)) -> anyhow::Re
     //    .await
     //    .expect("cannot start listener. exiting.");
 
-    let addr: SocketAddr = "0.0.0.0:3000".parse().unwrap();
+    let addr: SocketAddr = "127.0.0.1:3000".parse().unwrap();
 
     let socket = TcpSocket::new_v4().unwrap();
     socket.set_reuseaddr(true).unwrap(); // allow to reuse the addr both for connect and listen
     socket.set_reuseport(true).unwrap(); // same for the port
     socket.bind(addr).expect("cannot bind dataserver port");
 
-    let listener = socket.listen(1024).expect("cannot start listener. exiting.");
+    let listener = socket
+        .listen(1024)
+        .expect("cannot start listener. exiting.");
 
     event!(
         Level::INFO,

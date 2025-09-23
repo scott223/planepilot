@@ -19,6 +19,55 @@ pub(super) async fn execute_vertical_guidance(
     match auto_pilot_state.vertical_guidance.vertical_mode {
         VerticalModes::Standby => {}
         VerticalModes::TECS => {
+            let flight_path_commanded: f64 = 0.0;
+
+            let flight_path_error: f64 = flight_path_commanded - plane_state_struct.vpath;
+            let velocity_over_g: f64 = -plane_state_struct.gload_axial;
+
+            let energy_error = flight_path_error + velocity_over_g;
+
+            app_state_proxy
+                .add_to_energy_error_integral(energy_error * dt)
+                .await?;
+
+            // throttle
+
+            let Kti: f64 = 0.35;
+            let Ktii = 0.2;
+
+            let throttle: f64 = ((Kti * (energy_error))
+                + (auto_pilot_state.vertical_guidance.energy_error_integral * Ktii))
+                .clamp(0.0, 1.0);
+
+            // elevator
+
+            let energy_distribution_error = flight_path_error - velocity_over_g;
+
+            app_state_proxy
+                .add_to_pitch_error_integral(energy_distribution_error * dt)
+                .await?;
+
+            let Kei: f64 = 0.10;
+            let Keii = 0.01;
+
+            let elevator = ((Kei * (energy_distribution_error))
+                + (Keii * auto_pilot_state.vertical_guidance.pitch_error_integral))
+                .clamp(
+                    -auto_pilot_state.control_constants.max_pitch,
+                    auto_pilot_state.control_constants.max_pitch,
+                );
+
+            println!(
+                "TEC mode - alitude [ft]: {:.4}, Vind [kt]: {:.4}, f_path_err: {:.4}, v_g: {:.4}, e_err: {:.4},e_err_int: {:.4}, thrust: {:.4}, energy distr error: {:.4}, elevator: {:.4}",
+                plane_state_struct.altitude_msl, plane_state_struct.v_ind, flight_path_error, velocity_over_g, energy_error, auto_pilot_state.vertical_guidance.energy_error_integral, throttle, energy_distribution_error, elevator
+            );
+
+            send_command(app_state_proxy, &client, CommandType::Throttle, throttle).await?;
+            send_command(app_state_proxy, &client, CommandType::Elevator, elevator).await?;
+
+            /*
+
+
             // calculate specific (so no mass term) energy target
             let target_kinetic: f64 = 0.5
                 * (auto_pilot_state.vertical_guidance.velocity_setpoint
@@ -44,7 +93,7 @@ pub(super) async fn execute_vertical_guidance(
                 .add_to_energy_error_integral(energy_error * dt)
                 .await?;
 
-            dbg!(energy_error * dt); 
+            dbg!(energy_error * dt);
 
             let ke: f64 = auto_pilot_state.control_constants.tecs_energy_p;
             let ks = auto_pilot_state.control_constants.tecs_cruise_throttle_slope;
@@ -57,7 +106,7 @@ pub(super) async fn execute_vertical_guidance(
                 + auto_pilot_state.vertical_guidance.energy_error_integral * ki)
                 .clamp(0.0, 1.0);
 
-            //todo 
+            //todo
 
             println!(
                 "TEC mode - alitude [ft]: {:.4}, Vind [kt]: {:.4}, energy_error: {:.4}, integral: {:.4}, throttle: {:.4}",
@@ -121,9 +170,11 @@ pub(super) async fn execute_vertical_guidance(
                 pitch_rate_error,
                 elevator_setpoint: elevator,
             };
-            
+
             app_state_proxy.update_vertical_control_metrics(vertical_metrics).await?;
-            send_command(app_state_proxy, client, CommandType::Elevator, elevator).await?;
+            send_command(app_state_proxy, &client, CommandType::Elevator, elevator).await?;
+
+            */
         }
     }
 

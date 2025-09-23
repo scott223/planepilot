@@ -40,10 +40,12 @@ pub(super) struct AppState {
 pub(super) struct PlaneStateStruct {
     pub v_ind: f64,
     pub altitude_msl: f64,
+    pub vpath: f64,
     pub roll: f64,
     pub roll_rate: f64,
     pub pitch: f64,
     pub pitch_rate: f64,
+    pub gload_axial: f64,
     pub heading: f64,
 }
 
@@ -218,19 +220,29 @@ pub struct HorizontalGuidance {
     pub roll_error_integral: f64,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum VerticalModes {
-    #[default]
     Standby,
     TECS,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+impl Default for VerticalModes {
+    fn default() -> Self {
+        VerticalModes::Standby
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum HorizontalModes {
-    #[default]
     Standby,
     WingsLevel,
     Heading,
+}
+
+impl Default for HorizontalModes {
+    fn default() -> Self {
+        HorizontalModes::Standby
+    }
 }
 
 impl AppState {
@@ -276,10 +288,17 @@ impl AppState {
                             .unwrap()
                             .as_f64()
                             .unwrap(),
+                        vpath: self.plane_state.get("vpath").unwrap().as_f64().unwrap(),
                         roll: self.plane_state.get("roll").unwrap().as_f64().unwrap(),
                         roll_rate: self.plane_state.get("P").unwrap().as_f64().unwrap(),
                         pitch: self.plane_state.get("pitch").unwrap().as_f64().unwrap(),
                         pitch_rate: self.plane_state.get("Q").unwrap().as_f64().unwrap(),
+                        gload_axial: self
+                            .plane_state
+                            .get("Gload_axial")
+                            .unwrap()
+                            .as_f64()
+                            .unwrap(),
                         heading: self
                             .plane_state
                             .get("heading_true")
@@ -363,7 +382,10 @@ impl AppState {
                     let _ = result_sender.send(true);
                 }
                 StateSignal::ActivateStandbyVelocity { result_sender } => {
-                    std::mem::swap(&mut self.auto_pilot_state.vertical_guidance.velocity_setpoint, &mut self.auto_pilot_state.vertical_guidance.velocity_standby);
+                    std::mem::swap(
+                        &mut self.auto_pilot_state.vertical_guidance.velocity_setpoint,
+                        &mut self.auto_pilot_state.vertical_guidance.velocity_standby,
+                    );
 
                     let _ = result_sender.send(true);
                 }
@@ -376,7 +398,10 @@ impl AppState {
                     let _ = result_sender.send(true);
                 }
                 StateSignal::ActivateStandbyAltitude { result_sender } => {
-                    std::mem::swap(&mut self.auto_pilot_state.vertical_guidance.altitude_setpoint, &mut self.auto_pilot_state.vertical_guidance.altitude_standby);
+                    std::mem::swap(
+                        &mut self.auto_pilot_state.vertical_guidance.altitude_setpoint,
+                        &mut self.auto_pilot_state.vertical_guidance.altitude_standby,
+                    );
 
                     let _ = result_sender.send(true);
                 }
@@ -426,7 +451,6 @@ impl AppState {
                     self.auto_pilot_state.vertical_control_metrics = metrics;
                     let _ = result_sender.send(true);
                 }
-                
             }
         }
     }
@@ -526,10 +550,14 @@ pub(super) struct AppStateProxy {
 }
 
 impl AppStateProxy {
-    pub fn new(service_adresses: &(String, String, String), state_sender: mpsc::Sender<StateSignal>) -> Self {
-        AppStateProxy { 
+    pub fn new(
+        service_adresses: &(String, String, String),
+        state_sender: mpsc::Sender<StateSignal>,
+    ) -> Self {
+        AppStateProxy {
             service_adresses: service_adresses.clone(),
-            state_sender, }
+            state_sender,
+        }
     }
 
     pub async fn refresh_autopilot_constants(&self) -> anyhow::Result<()> {
@@ -665,9 +693,7 @@ impl AppStateProxy {
     pub async fn activate_heading_setpoint(&self) -> anyhow::Result<()> {
         let (result_sender, result_receiver) = oneshot::channel();
         self.state_sender
-            .send(StateSignal::ActivateStandbyHeading {
-                result_sender,
-            })
+            .send(StateSignal::ActivateStandbyHeading { result_sender })
             .await?;
 
         match result_receiver
@@ -682,9 +708,7 @@ impl AppStateProxy {
     pub async fn activate_horizontal_standby_mode(&self) -> anyhow::Result<()> {
         let (result_sender, result_receiver) = oneshot::channel();
         self.state_sender
-            .send(StateSignal::SetHorizontalGuidanceToStandbyMode {
-                result_sender,
-            })
+            .send(StateSignal::SetHorizontalGuidanceToStandbyMode { result_sender })
             .await?;
 
         match result_receiver
@@ -699,9 +723,7 @@ impl AppStateProxy {
     pub async fn activate_horizontal_wingslevel_mode(&self) -> anyhow::Result<()> {
         let (result_sender, result_receiver) = oneshot::channel();
         self.state_sender
-            .send(StateSignal::SetHorizontalGuidanceToWingsLevelMode {
-                result_sender,
-            })
+            .send(StateSignal::SetHorizontalGuidanceToWingsLevelMode { result_sender })
             .await?;
 
         match result_receiver
@@ -716,9 +738,7 @@ impl AppStateProxy {
     pub async fn activate_horizontal_heading_mode(&self) -> anyhow::Result<()> {
         let (result_sender, result_receiver) = oneshot::channel();
         self.state_sender
-            .send(StateSignal::SetHorizontalGuidanceToHeadingMode {
-                result_sender,
-            })
+            .send(StateSignal::SetHorizontalGuidanceToHeadingMode { result_sender })
             .await?;
 
         match result_receiver
@@ -791,9 +811,7 @@ impl AppStateProxy {
     pub async fn activate_velocity_setpoint(&self) -> anyhow::Result<()> {
         let (result_sender, result_receiver) = oneshot::channel();
         self.state_sender
-            .send(StateSignal::ActivateStandbyVelocity {
-                result_sender,
-            })
+            .send(StateSignal::ActivateStandbyVelocity { result_sender })
             .await?;
 
         match result_receiver
@@ -826,9 +844,7 @@ impl AppStateProxy {
     pub async fn activate_altitude_setpoint(&self) -> anyhow::Result<()> {
         let (result_sender, result_receiver) = oneshot::channel();
         self.state_sender
-            .send(StateSignal::ActivateStandbyAltitude {
-                result_sender,
-            })
+            .send(StateSignal::ActivateStandbyAltitude { result_sender })
             .await?;
 
         match result_receiver
@@ -843,9 +859,7 @@ impl AppStateProxy {
     pub async fn activate_vertical_standby_mode(&self) -> anyhow::Result<()> {
         let (result_sender, result_receiver) = oneshot::channel();
         self.state_sender
-            .send(StateSignal::SetVerticalGuidanceToStandbyMode {
-                result_sender,
-            })
+            .send(StateSignal::SetVerticalGuidanceToStandbyMode { result_sender })
             .await?;
 
         match result_receiver
@@ -861,9 +875,7 @@ impl AppStateProxy {
     pub async fn activate_vertical_TECS_mode(&self) -> anyhow::Result<()> {
         let (result_sender, result_receiver) = oneshot::channel();
         self.state_sender
-            .send(StateSignal::SetVerticalGuidanceToTECSMode {
-                result_sender,
-            })
+            .send(StateSignal::SetVerticalGuidanceToTECSMode { result_sender })
             .await?;
 
         match result_receiver
@@ -934,7 +946,7 @@ impl AppStateProxy {
             _ => Err(anyhow!("Error with receiving result from autopilot state")),
         }
     }
-    
+
     pub async fn update_vertical_control_metrics(
         &self,
         metrics: AutoPilotVerticalMetrics,
