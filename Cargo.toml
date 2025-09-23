@@ -21,27 +21,27 @@ pp_autopilot = { path = "pp_autopilot" }
 pp_dataserver = { path = "pp_dataserver" }
 pp_planeconnector = { path = "pp_planeconnector" }
 
-dotenv = "0.15.0"
-tokio = { version = "1.47.1", features = ["full"] }
-tokio-util = "0.7.11"
+dotenv = "0.15"
+tokio = { version = "1.47", features = ["full"] }
+tokio-util = "0.7"
 
-reqwest = { version = "0.12.5", features = ["json"] }
-serde = { version = "1.0.2", features = ["derive"] }
-serde_json = "1.0.115"
+reqwest = { version = "0.12", features = ["json"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 
-tracing = "0.1.40"
+tracing = "0.1"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 
 crossterm = {version = "0.27", features = ['events', 'event-stream'] }
 futures = "0.3"
 futures-timer = "3.0.3"
 
-anyhow = "1.0.86"
-chrono = { version = "0.4.38", features = ["serde"] }
-axum = { version = "0.8.4", features = ["http2", "macros"] }
-tower-http = { version = "0.5.2", features = ["trace", "cors",] }
+anyhow = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+axum = { version = "0.8", features = ["http2", "macros"] }
+tower-http = { version = "0.6", features = ["trace", "cors",] }
 
-itertools = "0.13.0"
+itertools = "0.13"
 
 [dependencies]
 pp_autopilot = { workspace = true }
