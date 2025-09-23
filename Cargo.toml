@@ -22,7 +22,7 @@ pp_dataserver = { path = "pp_dataserver" }
 pp_planeconnector = { path = "pp_planeconnector" }
 
 dotenv = "0.15.0"
-tokio = { version = "1.39.2", features = ["full"] }
+tokio = { version = "1.47.1", features = ["full"] }
 tokio-util = "0.7.11"
 
 reqwest = { version = "0.12.5", features = ["json"] }
@@ -38,7 +38,7 @@ futures-timer = "3.0.3"
 
 anyhow = "1.0.86"
 chrono = { version = "0.4.38", features = ["serde"] }
-axum = { version = "0.7.5", features = ["http2", "macros"] }
+axum = { version = "0.8.4", features = ["http2", "macros"] }
 tower-http = { version = "0.5.2", features = ["trace", "cors",] }
 
 itertools = "0.13.0"

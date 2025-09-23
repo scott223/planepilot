@@ -185,7 +185,7 @@ fn map_values(
                     }
                     DataType::Integer => { // todo
                     }
-                    DataType::Empty => { // here we dont need to anything
+                    DataType::Empty => { // here we don't need to anything
                     }
                 };
             }
