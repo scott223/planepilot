@@ -220,9 +220,8 @@ pub struct HorizontalGuidance {
     pub roll_error_integral: f64,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum VerticalModes {
-    #[default]
     Standby,
     TECS,
 }
@@ -235,7 +234,6 @@ impl Default for VerticalModes {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum HorizontalModes {
-    #[default]
     Standby,
     WingsLevel,
     Heading,

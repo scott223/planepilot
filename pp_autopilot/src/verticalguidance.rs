@@ -21,19 +21,31 @@ pub(super) async fn execute_vertical_guidance(
         VerticalModes::TECS => {
             let flight_path_commanded: f64 = 0.0;
 
-            let flight_path_error: f64 = plane_state_struct.vpath - flight_path_commanded;
+            let flight_path_error: f64 = flight_path_commanded - plane_state_struct.vpath;
             let velocity_over_g: f64 = plane_state_struct.gload_axial / GRAVITATIONAL_CONSTANT;
+
+            // throttle
 
             let Kti: f64 = 0.3;
 
-            let throttle: f64 = Kti * (flight_path_error + velocity_over_g).clamp(0.0, 1.0);
+            let throttle: f64 = (Kti * (flight_path_error + velocity_over_g)).clamp(0.0, 1.0);
+
+            // elevator
+
+            let Kei: f64 = 0.10;
+
+            let elevator = (Kei * (flight_path_error - velocity_over_g)).clamp(
+                -auto_pilot_state.control_constants.max_pitch,
+                auto_pilot_state.control_constants.max_pitch,
+            );
 
             println!(
-                "TEC mode - alitude [ft]: {:.4}, Vind [kt]: {:.4}, flight_path_error: {:.4}, velocity_g: {:.4}, thrust: {:.4}",
-                plane_state_struct.altitude_msl, plane_state_struct.v_ind, flight_path_error, velocity_over_g, throttle
+                "TEC mode - alitude [ft]: {:.4}, Vind [kt]: {:.4}, flight_path_error: {:.4}, velocity_g: {:.4}, thrust: {:.4}, elevator: {:.4}",
+                plane_state_struct.altitude_msl, plane_state_struct.v_ind, flight_path_error, velocity_over_g, throttle, elevator
             );
 
             send_command(app_state_proxy, &client, CommandType::Throttle, throttle).await?;
+            send_command(app_state_proxy, &client, CommandType::Elevator, elevator).await?;
 
             /*
 
@@ -142,13 +154,9 @@ pub(super) async fn execute_vertical_guidance(
             };
 
             app_state_proxy.update_vertical_control_metrics(vertical_metrics).await?;
-<<<<<<< HEAD
             send_command(app_state_proxy, &client, CommandType::Elevator, elevator).await?;
 
             */
-=======
-            send_command(app_state_proxy, client, CommandType::Elevator, elevator).await?;
->>>>>>> 30818d69370971276d28d4a622e3022d7a9041d4
         }
     }
 
