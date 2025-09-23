@@ -13,6 +13,9 @@ use tracing::{event, Level};
 
 use tower_http::cors::{Any, CorsLayer};
 
+use std::net::SocketAddr;
+use tokio::net::TcpSocket;
+
 pub mod controller;
 pub mod models;
 pub mod sse;
@@ -46,9 +49,18 @@ pub async fn run_app(_service_adresses: &(String, String, String)) -> anyhow::Re
         .with_state(app_state);
 
     // run our app with hyper, listening globally on port 3000
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
-        .await
-        .expect("cannot start listener. exiting.");
+    //let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
+    //    .await
+    //    .expect("cannot start listener. exiting.");
+
+    let addr: SocketAddr = "0.0.0.0:3000".parse().unwrap();
+
+    let socket = TcpSocket::new_v4().unwrap();
+    socket.set_reuseaddr(true).unwrap(); // allow to reuse the addr both for connect and listen
+    socket.set_reuseport(true).unwrap(); // same for the port
+    socket.bind(addr).expect("cannot bind dataserver port");
+
+    let listener = socket.listen(1024).expect("cannot start listener. exiting.");
 
     event!(
         Level::INFO,

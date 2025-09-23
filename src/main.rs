@@ -43,7 +43,7 @@ async fn main() {
         _ = run_terminal() => { }
     }
 
-    event!(tracing::Level::INFO, "Planepilt closed");
+    event!(tracing::Level::INFO, "Planepilot closed");
 }
 
 // listents to terminal inputs, and breaks on "q"
