@@ -12,6 +12,9 @@ use axum::{
 use tower_http::cors::{Any, CorsLayer};
 use tracing::{event, Level};
 
+use std::net::SocketAddr;
+use tokio::net::TcpSocket;
+
 use super::{
     types::{AppStateProxy, Command},
     utils,
@@ -35,9 +38,19 @@ pub(super) async fn run_server(app_state: AppStateProxy) {
         .with_state(app_state);
 
     // run our app with hyper, listening globally on port 3100
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3100")
-        .await
-        .expect("Cannot start listener. Exiting.");
+    //let listener = tokio::net::TcpListener::bind("0.0.0.0:3100")
+    //    .await
+    //    .expect("Cannot start listener. Exiting.");
+
+    let addr: SocketAddr = "0.0.0.0:3100".parse().unwrap();
+
+    let socket = TcpSocket::new_v4().unwrap();
+    socket.set_reuseaddr(true).unwrap(); // allow to reuse the addr both for connect and listen
+    socket.set_reuseport(true).unwrap(); // same for the port
+    socket.bind(addr).expect("cannot bind planeconnector port");
+
+    let listener = socket.listen(1024).expect("cannot start listener. exiting.");
+
 
     event!(
         Level::INFO,

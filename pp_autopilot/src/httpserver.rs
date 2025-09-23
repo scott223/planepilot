@@ -5,6 +5,9 @@ use axum::{
     Json, Router,
 };
 
+use std::net::SocketAddr;
+use tokio::net::TcpSocket;
+
 use tower_http::cors::{Any, CorsLayer};
 use tracing::{event, Level};
 
@@ -22,17 +25,26 @@ pub(super) async fn run_server(app_state_proxy: AppStateProxy) {
     let app: Router = Router::new()
         .route("/", get(root))
         .route("/api/v1/autopilot_state", get(get_autopilot_state))
-        .route("/api/v1/activate/:direction/:mode", get(activate_mode))
-        .route("/api/v1/set/:key/:value", get(set_key))
-        .route("/api/v1/switch/:key", get(switch_key))
+        .route("/api/v1/activate/{direction}/{mode}", get(activate_mode))
+        .route("/api/v1/set/{key}/{value}", get(set_key))
+        .route("/api/v1/switch/{key}", get(switch_key))
         .layer(utils::return_trace_layer())
         .layer(cors)
         .with_state(app_state_proxy);
 
     // run our app with hyper, listening globally on port 3200
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3200")
-        .await
-        .expect("Cannot start listener. Exiting.");
+    //let listener = tokio::net::TcpListener::bind("0.0.0.0:3200")
+    //    .await
+    //    .expect("Cannot start listener. Exiting.");
+
+    let addr: SocketAddr = "0.0.0.0:3200".parse().unwrap();
+
+    let socket = TcpSocket::new_v4().unwrap();
+    socket.set_reuseaddr(true).unwrap(); // allow to reuse the addr both for connect and listen
+    socket.set_reuseport(true).unwrap(); // same for the port
+    socket.bind(addr).expect("cannot bind autopilot port");
+
+    let listener = socket.listen(1024).expect("cannot start listener. exiting.");
 
     event!(
         Level::INFO,
@@ -105,7 +117,7 @@ async fn set_key(
 
     match res {
         Ok(_) => {
-            event!(Level::INFO, "Standy value set ({}, {})", key, value);
+            event!(Level::INFO, "Standby value set ({}, {})", key, value);
             Ok(StatusCode::OK)
         }
         Err(e) => {
