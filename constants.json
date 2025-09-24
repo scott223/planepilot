@@ -16,7 +16,7 @@
     "max_aileron": 0.3,
     "max_roll": 30.0,
     "max_roll_rate": 3.0,
-    "max_elevator": 0.3,
+    "max_elevator": 0.4,
     "max_pitch": 15.0,
     "max_pitch_rate": 15.0
 }

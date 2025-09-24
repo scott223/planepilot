@@ -33,7 +33,7 @@ pub(super) async fn execute_vertical_guidance(
             // throttle
 
             let Kti: f64 = 0.10;
-            let Ktii = 0.03;
+            let Ktii = 0.10;
 
             let throttle: f64 = ((Kti * (energy_error))
                 + (auto_pilot_state.vertical_guidance.energy_error_integral * Ktii))
@@ -47,8 +47,8 @@ pub(super) async fn execute_vertical_guidance(
                 .add_to_pitch_error_integral(energy_distribution_error * dt)
                 .await?;
 
-            let Kei: f64 = 0.02;
-            let Keii = 0.01;
+            let Kei: f64 = 0.04;
+            let Keii = 0.02;
 
             let elevator = ((Kei * (energy_distribution_error))
                 + (Keii * auto_pilot_state.vertical_guidance.pitch_error_integral))

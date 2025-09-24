@@ -147,7 +147,7 @@ impl AutoPilotConstants {
             max_aileron: 0.3,
             max_roll: 30.0,
             max_roll_rate: 3.0,
-            max_elevator: 0.3,
+            max_elevator: 0.5,
             max_pitch: 15.0,
             max_pitch_rate: 15.0,
         }
@@ -281,6 +281,7 @@ impl AppState {
                     let _ = result_sender.send(self.plane_state.clone());
                 }
                 StateSignal::ReturnPlaneStateStruct { result_sender } => {
+                    //dbg!(self.plane_state.clone());
                     let state_struct = PlaneStateStruct {
                         v_ind: self.plane_state.get("Vind").unwrap().as_f64().unwrap(),
                         altitude_msl: self
@@ -422,16 +423,54 @@ impl AppState {
                     value,
                     result_sender,
                 } => {
+                    //limit integral wind up to 20% max
+                    let bandwith = (self
+                        .auto_pilot_state
+                        .vertical_guidance
+                        .energy_error_integral
+                        .abs()
+                        * 0.02)
+                        .max(0.1);
                     self.auto_pilot_state
                         .vertical_guidance
-                        .energy_error_integral += value;
+                        .energy_error_integral = (self
+                        .auto_pilot_state
+                        .vertical_guidance
+                        .energy_error_integral
+                        + value)
+                        .clamp(
+                            self.auto_pilot_state
+                                .vertical_guidance
+                                .energy_error_integral
+                                - bandwith,
+                            self.auto_pilot_state
+                                .vertical_guidance
+                                .energy_error_integral
+                                + bandwith,
+                        );
                     let _ = result_sender.send(true);
                 }
                 StateSignal::AddToPitchErrorIntegral {
                     value,
                     result_sender,
                 } => {
-                    self.auto_pilot_state.vertical_guidance.pitch_error_integral += value;
+                    //limit integral wind up to 20% max
+                    let bandwith = (self
+                        .auto_pilot_state
+                        .vertical_guidance
+                        .pitch_error_integral
+                        .abs()
+                        * 0.02)
+                        .max(0.1);
+
+                    self.auto_pilot_state.vertical_guidance.pitch_error_integral =
+                        (self.auto_pilot_state.vertical_guidance.pitch_error_integral + value)
+                            .clamp(
+                                self.auto_pilot_state.vertical_guidance.pitch_error_integral
+                                    - bandwith,
+                                self.auto_pilot_state.vertical_guidance.pitch_error_integral
+                                    + bandwith,
+                            );
                     let _ = result_sender.send(true);
                 }
                 StateSignal::RefreshAutoPilotConstants { result_sender } => {
