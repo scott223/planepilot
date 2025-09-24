@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
@@ -34,7 +35,7 @@ impl std::error::Error for SpecificErrors {}
 pub(super) struct AppState {
     receiver: mpsc::Receiver<StateSignal>,
     auto_pilot_state: AutoPilotState,
-    plane_state: HashMap<String, Value>,
+    plane_state: BTreeMap<String, Value>,
 }
 
 pub(super) struct PlaneStateStruct {
@@ -249,7 +250,7 @@ impl AppState {
     pub fn new(rx: mpsc::Receiver<StateSignal>) -> Self {
         AppState {
             auto_pilot_state: AutoPilotState::new(),
-            plane_state: HashMap::new(),
+            plane_state: BTreeMap::new(),
             receiver: rx,
         }
     }
@@ -462,12 +463,12 @@ pub(super) enum StateSignal {
         result_sender: oneshot::Sender<bool>,
     },
     SetPlaneState {
-        plane_state: HashMap<String, Value>,
+        plane_state: BTreeMap<String, Value>,
         result_sender: oneshot::Sender<bool>,
     },
     #[allow(dead_code)]
     ReturnPlaneState {
-        result_sender: oneshot::Sender<HashMap<String, Value>>,
+        result_sender: oneshot::Sender<BTreeMap<String, Value>>,
     },
     ReturnPlaneStateStruct {
         result_sender: oneshot::Sender<PlaneStateStruct>,
@@ -597,7 +598,7 @@ impl AppStateProxy {
 
     // plane state
     #[allow(dead_code)]
-    pub async fn get_plane_state(&self) -> anyhow::Result<HashMap<String, Value>> {
+    pub async fn get_plane_state(&self) -> anyhow::Result<BTreeMap<String, Value>> {
         let (result_sender, result_receiver) = oneshot::channel();
 
         self.state_sender
@@ -621,7 +622,10 @@ impl AppStateProxy {
             .unwrap_or_else(|_| panic!("Failed to receive result from state")))
     }
 
-    pub async fn set_plane_state(&self, plane_state: HashMap<String, Value>) -> anyhow::Result<()> {
+    pub async fn set_plane_state(
+        &self,
+        plane_state: BTreeMap<String, Value>,
+    ) -> anyhow::Result<()> {
         let (result_sender, result_receiver) = oneshot::channel();
 
         self.state_sender

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use serde_json::{Number, Value};
 use tokio::{sync::mpsc, time::Duration};
@@ -77,9 +77,7 @@ async fn run_autopilot(app_state_proxy: AppStateProxy) -> anyhow::Result<()> {
         app_state_proxy.refresh_autopilot_constants().await?;
 
         if auto_pilot_state.are_we_flying {
-
-            let plane_state: PlaneStateStruct =
-                app_state_proxy.get_plane_state_as_struct().await?;
+            let plane_state: PlaneStateStruct = app_state_proxy.get_plane_state_as_struct().await?;
 
             let dt: f64 = MILLISECONDS_PER_LOOP as f64 / 1000.0;
 
@@ -142,7 +140,7 @@ async fn send_command(
     }
 }
 
-async fn update_state(app_state_proxy: &AppStateProxy) -> anyhow::Result<HashMap<String, Value>> {
+async fn update_state(app_state_proxy: &AppStateProxy) -> anyhow::Result<BTreeMap<String, Value>> {
     let res = match reqwest::get(app_state_proxy.service_adresses.1.to_owned() + "/state").await {
         Ok(res) => res,
         Err(_) => {
@@ -154,18 +152,16 @@ async fn update_state(app_state_proxy: &AppStateProxy) -> anyhow::Result<HashMap
 
     match res.status() {
         reqwest::StatusCode::OK => {
-            let state = res.json::<HashMap<String, Value>>().await?;
+            let state = res.json::<BTreeMap<String, Value>>().await?;
             if !state.contains_key("last_updated_timestamp") {
                 //todo check the recent update datetime, and if not recent, return error
                 return Err(anyhow::Error::new(SpecificErrors::StateNotUpdatedRecently));
             }
             Ok(state)
         }
-        _ => {
-            Err(anyhow::Error::new(
-                SpecificErrors::PlaneConnectorReturnedError,
-            ))
-        }
+        _ => Err(anyhow::Error::new(
+            SpecificErrors::PlaneConnectorReturnedError,
+        )),
     }
 }
 
@@ -174,9 +170,8 @@ async fn share_state_with_data_server(app_state_proxy: AppStateProxy) -> anyhow:
 
     loop {
         let state = app_state_proxy.get_auto_pilot_state().await?;
-        
-        if state.are_we_flying {
 
+        if state.are_we_flying {
             // AutoPilotState uses serde flatten to flatten into one JSON withouth nesting
             let json = serde_json::json!({
                 "state_type": "AutoPilotState",
@@ -192,10 +187,8 @@ async fn share_state_with_data_server(app_state_proxy: AppStateProxy) -> anyhow:
                 Ok(_res) => {}
                 Err(e) => return Err(e.into()),
             };
-
         }
-        
+
         let _ = tokio::time::sleep(Duration::from_millis(1000)).await;
     }
-
 }

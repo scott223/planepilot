@@ -1,99 +1,34 @@
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use tokio::sync::{mpsc, oneshot};
 
 // Define the types of commands that can be sent to the AppState actor
 #[derive(Debug)]
 pub(super) enum StateSignal {
     ReturnPlaneState {
-        result_sender: oneshot::Sender<HashMap<String, serde_json::value::Value>>,
+        result_sender: oneshot::Sender<BTreeMap<String, serde_json::value::Value>>,
+    },
+    ReturnAveragePlaneState {
+        result_sender: oneshot::Sender<BTreeMap<String, serde_json::value::Value>>,
     },
     UpdatePlaneState {
-        state: HashMap<String, serde_json::value::Value>,
+        state: BTreeMap<String, serde_json::value::Value>,
         result_sender: oneshot::Sender<bool>,
     },
 }
 
 // App state - has a receiver to receive signals and a trait to respond to it, no memory sharing
 pub(super) struct AppState {
-    plane_state: HashMap<String, Value>,
+    plane_state: BTreeMap<String, Value>,
+    average_plane_state: BTreeMap<String, Vec<Value>>,
     receiver: mpsc::Receiver<StateSignal>,
-}
-
-pub(super) struct AppAverageState {
-    // we could consider using a VecDeque (ringbuffer) if performance is not great
-    plane_state: HashMap<String, Vec<Value>>,
-    receiver: mpsc::Receiver<StateSignal>,
-}
-
-impl AppAverageState {
-    pub fn new(receiver: mpsc::Receiver<StateSignal>) -> Self {
-        AppAverageState { plane_state: HashMap::new(), receiver, }
-    }
-
-    // Process incoming commands asynchronously
-    pub async fn process(mut self) {
-        while let Some(signal) = self.receiver.recv().await {
-            match signal {
-                StateSignal::ReturnPlaneState { result_sender } => {
-                    let mut state: HashMap<String, Value> = HashMap::new();
-
-                    for (key, val) in self.plane_state.iter() {
-                        
-                        let nnumbres: f64 = val.len() as f64;
-
-                        if nnumbres == 0.0 {
-                            state.insert(key.to_string(), Value::Number(serde_json::Number::from_f64(0.0).unwrap()));
-                        } else {
-
-                            // its a float, so calculate the average
-                            if val[0].is_f64() {
-
-                                let mut total: f64 = 0.0;
-
-                                for n in val {
-                                    if n.is_f64() {
-                                        total += n.as_f64().unwrap();
-                                    }
-                                }                   
-                            
-                            state.insert(key.to_string(), Value::Number(serde_json::Number::from_f64(total/nnumbres).unwrap()));
-                            
-                            }
-
-                            //its a boolean, so just return the latest number
-                            if val[0].is_boolean() {
-                                state.insert(key.to_string(), val[0].clone());
-                            
-                            }
-
-                        }
-                    }
-                    
-                    let _ = result_sender.send(state.clone());
-                }
-                StateSignal::UpdatePlaneState {
-                    state,
-                    result_sender,
-                } => {
-                    for (key, val) in state.iter() {
-                        self.plane_state.entry(key.to_string()).and_modify(|f| {
-                            f.insert(0,val.clone()); 
-                            // make sure it never grows larger than a set size
-                            if f.len() > 10 { f.pop(); }
-                        }).or_insert(vec![val.clone()]);
-                    }
-                    let _ = result_sender.send(true);
-                }
-            }
-        }
-    }
 }
 
 impl AppState {
     pub fn new(receiver: mpsc::Receiver<StateSignal>) -> Self {
         AppState {
-            plane_state: HashMap::new(),
+            plane_state: BTreeMap::new(),
+            average_plane_state: BTreeMap::new(),
             receiver,
         }
     }
@@ -105,12 +40,76 @@ impl AppState {
                 StateSignal::ReturnPlaneState { result_sender } => {
                     let _ = result_sender.send(self.plane_state.clone());
                 }
+                StateSignal::ReturnAveragePlaneState { result_sender } => {
+                    let mut state: BTreeMap<String, Value> = BTreeMap::new();
+
+                    for (key, val) in self.average_plane_state.iter() {
+                        let nnumbers: f64 = val.len() as f64;
+
+                        if nnumbers == 0.0 {
+                            state.insert(
+                                key.to_string(),
+                                Value::Number(serde_json::Number::from_f64(0.0).unwrap()),
+                            );
+                        } else {
+                            // its a float, so calculate the average
+                            if val[0].is_f64() {
+                                let mut total: f64 = 0.0;
+
+                                for n in val {
+                                    if n.is_f64() {
+                                        total += n.as_f64().unwrap();
+                                    }
+                                }
+
+                                state.insert(
+                                    key.to_string(),
+                                    Value::Number(
+                                        serde_json::Number::from_f64(total / nnumbers).unwrap(),
+                                    ),
+                                );
+                            }
+
+                            //its a boolean, so just return the latest number
+                            if val[0].is_boolean() {
+                                state.insert(key.to_string(), val[0].clone());
+                            }
+
+                            //its a integer, so just return the latest integer
+                            // TODO
+                            if val[0].is_i64() {
+                                state.insert(key.to_string(), val[0].clone());
+                            }
+                        }
+                    }
+
+                    let _ = result_sender.send(state.clone());
+                }
                 StateSignal::UpdatePlaneState {
                     state,
                     result_sender,
                 } => {
                     for (key, val) in state.iter() {
                         self.plane_state.insert(key.clone(), val.clone());
+
+                        self.average_plane_state
+                            .entry(key.to_string())
+                            .and_modify(|f| {
+                                f.insert(0, val.clone());
+
+                                // make sure it never grows larger than a set size
+                                if f.len() > 10 {
+                                    f.pop();
+                                }
+                            })
+                            .or_insert(vec![val.clone()]);
+
+                        // add the current update timestamp to plane_state
+                        // TODO
+                        self.average_plane_state.insert(
+                            "last_updated_timestamp".to_string(),
+                            vec![Value::Number(chrono::Utc::now().timestamp_millis().into())],
+                        );
                     }
                     let _ = result_sender.send(true);
                 }
@@ -129,7 +128,11 @@ pub(super) struct AppStateProxy {
 }
 
 impl AppStateProxy {
-    pub fn new(service_adresses: &(String, String, String), state_sender: mpsc::Sender<StateSignal>, command_sender: mpsc::Sender<Command>) -> Self {
+    pub fn new(
+        service_adresses: &(String, String, String),
+        state_sender: mpsc::Sender<StateSignal>,
+        command_sender: mpsc::Sender<Command>,
+    ) -> Self {
         AppStateProxy {
             service_adresses: service_adresses.clone(),
             state_sender,
@@ -148,7 +151,7 @@ impl AppStateProxy {
     }
 
     // send and return state signal and await the result
-    pub async fn get_state(&self) -> anyhow::Result<HashMap<String, serde_json::value::Value>> {
+    pub async fn get_state(&self) -> anyhow::Result<BTreeMap<String, serde_json::value::Value>> {
         let (result_sender, result_receiver) = oneshot::channel();
         self.state_sender
             .send(StateSignal::ReturnPlaneState { result_sender })
@@ -158,10 +161,23 @@ impl AppStateProxy {
             .unwrap_or_else(|_| panic!("Failed to receive result from state")))
     }
 
+    // send and return state signal and await the result
+    pub async fn get_average_state(
+        &self,
+    ) -> anyhow::Result<BTreeMap<String, serde_json::value::Value>> {
+        let (result_sender, result_receiver) = oneshot::channel();
+        self.state_sender
+            .send(StateSignal::ReturnAveragePlaneState { result_sender })
+            .await?;
+        Ok(result_receiver
+            .await
+            .unwrap_or_else(|_| panic!("Failed to receive average state result from state")))
+    }
+
     // Send a value to be added to the state
     pub async fn add_value_to_state(
         &self,
-        state: HashMap<String, serde_json::value::Value>,
+        state: BTreeMap<String, serde_json::value::Value>,
     ) -> anyhow::Result<bool> {
         let (result_sender, result_receiver) = oneshot::channel();
         self.state_sender

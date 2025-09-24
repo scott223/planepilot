@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use serde::{Deserialize, Serialize};
 
@@ -109,10 +109,15 @@ async fn send_command(
 async fn get_state(
     State(app_state_proxy): State<AppStateProxy>,
 ) -> Result<impl axum::response::IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let state: HashMap<String, serde_json::Value> = app_state_proxy
+    let state: BTreeMap<String, serde_json::Value> = app_state_proxy
         .get_state()
         .await
         .expect("error getting the state");
 
-    Ok(Json(state))
+    let average_state: BTreeMap<String, serde_json::Value> = app_state_proxy
+        .get_average_state()
+        .await
+        .expect("error getting the state");
+
+    Ok(Json(average_state))
 }

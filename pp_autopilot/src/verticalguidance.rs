@@ -53,8 +53,8 @@ pub(super) async fn execute_vertical_guidance(
             let elevator = ((Kei * (energy_distribution_error))
                 + (Keii * auto_pilot_state.vertical_guidance.pitch_error_integral))
                 .clamp(
-                    -auto_pilot_state.control_constants.max_pitch,
-                    auto_pilot_state.control_constants.max_pitch,
+                    -auto_pilot_state.control_constants.max_elevator,
+                    auto_pilot_state.control_constants.max_elevator,
                 );
 
             println!(

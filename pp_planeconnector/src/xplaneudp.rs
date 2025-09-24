@@ -1,5 +1,5 @@
 use serde_json::{Number, Value};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::time::Duration;
 
 use tokio::net::UdpSocket;
@@ -144,8 +144,11 @@ mod tests {
 
     #[test]
     fn test_translate_bytes_to_floats() {
-
-        let bytes: [u8; 8*4] = [0x00, 0x00, 0x48, 0x41, 0x00, 0x00, 0x48, 0x41, 0x00, 0x00, 0x48, 0x41, 0x00, 0x00, 0x48, 0x41, 0x00, 0x00, 0x48, 0x41, 0x00, 0x00, 0x48, 0x41, 0x00, 0x00, 0x48, 0x41, 0x00, 0x00, 0x48, 0x41];
+        let bytes: [u8; 8 * 4] = [
+            0x00, 0x00, 0x48, 0x41, 0x00, 0x00, 0x48, 0x41, 0x00, 0x00, 0x48, 0x41, 0x00, 0x00,
+            0x48, 0x41, 0x00, 0x00, 0x48, 0x41, 0x00, 0x00, 0x48, 0x41, 0x00, 0x00, 0x48, 0x41,
+            0x00, 0x00, 0x48, 0x41,
+        ];
         let vec: Vec<f32> = [12.5, 12.5, 12.5, 12.5, 12.5, 12.5, 12.5, 12.5].to_vec();
 
         assert_eq!(translate_bytes_to_floats(&bytes).unwrap(), vec);
@@ -159,8 +162,8 @@ fn map_values(
     packet_index: u8,
     values: Vec<f32>,
     data_map: &[DataIndex],
-) -> anyhow::Result<HashMap<String, Value>> {
-    let mut plane_state: HashMap<String, Value> = HashMap::new();
+) -> anyhow::Result<BTreeMap<String, Value>> {
+    let mut plane_state: BTreeMap<String, Value> = BTreeMap::new();
 
     match data_map.iter().find(|m| m.index == packet_index) {
         Some(m) => {
