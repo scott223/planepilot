@@ -24,7 +24,7 @@ pub(super) async fn execute_vertical_guidance(
             let flight_path_error: f64 = flight_path_commanded - plane_state_struct.vpath;
             let velocity_over_g: f64 = -plane_state_struct.gload_axial;
 
-            let energy_error = flight_path_error + velocity_over_g;
+            let energy_error = flight_path_error - velocity_over_g;
 
             app_state_proxy
                 .add_to_energy_error_integral(energy_error * dt)
@@ -32,8 +32,8 @@ pub(super) async fn execute_vertical_guidance(
 
             // throttle
 
-            let Kti: f64 = 0.35;
-            let Ktii = 0.2;
+            let Kti: f64 = 0.10;
+            let Ktii = 0.03;
 
             let throttle: f64 = ((Kti * (energy_error))
                 + (auto_pilot_state.vertical_guidance.energy_error_integral * Ktii))
@@ -47,7 +47,7 @@ pub(super) async fn execute_vertical_guidance(
                 .add_to_pitch_error_integral(energy_distribution_error * dt)
                 .await?;
 
-            let Kei: f64 = 0.10;
+            let Kei: f64 = 0.02;
             let Keii = 0.01;
 
             let elevator = ((Kei * (energy_distribution_error))
