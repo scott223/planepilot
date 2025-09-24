@@ -20,6 +20,76 @@ pub(super) struct AppState {
     receiver: mpsc::Receiver<StateSignal>,
 }
 
+pub(super) struct AppAverageState {
+    // we could consider using a VecDeque (ringbuffer) if performance is not great
+    plane_state: HashMap<String, Vec<Value>>,
+    receiver: mpsc::Receiver<StateSignal>,
+}
+
+impl AppAverageState {
+    pub fn new(receiver: mpsc::Receiver<StateSignal>) -> Self {
+        AppAverageState { plane_state: HashMap::new(), receiver, }
+    }
+
+    // Process incoming commands asynchronously
+    pub async fn process(mut self) {
+        while let Some(signal) = self.receiver.recv().await {
+            match signal {
+                StateSignal::ReturnPlaneState { result_sender } => {
+                    let mut state: HashMap<String, Value> = HashMap::new();
+
+                    for (key, val) in self.plane_state.iter() {
+                        
+                        let nnumbres: f64 = val.len() as f64;
+
+                        if nnumbres == 0.0 {
+                            state.insert(key.to_string(), Value::Number(serde_json::Number::from_f64(0.0).unwrap()));
+                        } else {
+
+                            // its a float, so calculate the average
+                            if val[0].is_f64() {
+
+                                let mut total: f64 = 0.0;
+
+                                for n in val {
+                                    if n.is_f64() {
+                                        total += n.as_f64().unwrap();
+                                    }
+                                }                   
+                            
+                            state.insert(key.to_string(), Value::Number(serde_json::Number::from_f64(total/nnumbres).unwrap()));
+                            
+                            }
+
+                            //its a boolean, so just return the latest number
+                            if val[0].is_boolean() {
+                                state.insert(key.to_string(), val[0].clone());
+                            
+                            }
+
+                        }
+                    }
+                    
+                    let _ = result_sender.send(state.clone());
+                }
+                StateSignal::UpdatePlaneState {
+                    state,
+                    result_sender,
+                } => {
+                    for (key, val) in state.iter() {
+                        self.plane_state.entry(key.to_string()).and_modify(|f| {
+                            f.insert(0,val.clone()); 
+                            // make sure it never grows larger than a set size
+                            if f.len() > 10 { f.pop(); }
+                        }).or_insert(vec![val.clone()]);
+                    }
+                    let _ = result_sender.send(true);
+                }
+            }
+        }
+    }
+}
+
 impl AppState {
     pub fn new(receiver: mpsc::Receiver<StateSignal>) -> Self {
         AppState {
