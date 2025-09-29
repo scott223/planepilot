@@ -22,9 +22,9 @@ pub(super) async fn execute_vertical_guidance(
             let flight_path_commanded: f64 = 0.0;
 
             let flight_path_error: f64 = flight_path_commanded - plane_state_struct.vpath;
-            let velocity_over_g: f64 = -plane_state_struct.gload_axial;
+            let velocity_over_g: f64 = - plane_state_struct.gload_axial / GRAVITATIONAL_CONSTANT;
 
-            let energy_error = flight_path_error - velocity_over_g;
+            let energy_error = flight_path_error + velocity_over_g;
 
             app_state_proxy
                 .add_to_energy_error_integral(energy_error * dt)

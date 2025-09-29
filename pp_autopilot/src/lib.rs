@@ -30,8 +30,6 @@ pub async fn run_app(service_adresses: &(String, String, String)) -> anyhow::Res
     Ok(())
 }
 
-//
-
 async fn run_autopilot(app_state_proxy: AppStateProxy) -> anyhow::Result<()> {
     const MILLISECONDS_PER_LOOP: u64 = 200;
     let reqwest_client: reqwest::Client = reqwest::Client::new();
