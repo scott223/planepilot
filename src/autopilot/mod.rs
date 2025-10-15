@@ -1,15 +1,18 @@
+use anyhow::Context;
 use tracing::{event, Level};
 
 pub(super) async fn run_autopilot(app_state: std::sync::Arc<std::sync::Mutex<crate::types::AppState>>, tx: tokio::sync::mpsc::Sender<crate::types::Command>) -> anyhow::Result<()> {
     const MILLISECONDS_PER_LOOP: u64 = 200;
+
     loop {
 
         {
         let mut state = app_state.lock().expect("cannot get lock on the state");
+
         let mut are_we_flying: bool = false;
         if state.plane_state.contains_key("last_updated_timestamp") {
-            //TODO too many unwraps here, need more gracefull error handling
-            if state.plane_state.get("last_updated_timestamp").unwrap().as_i64().unwrap() > (chrono::Utc::now().timestamp_millis() - 1000) {
+            
+            if state.plane_state.get("last_updated_timestamp").context("cannot get last_update_timestamp")?.as_i64().context("cannot convert timestamp to i64")? > (chrono::Utc::now().timestamp_millis() - 1000) {
                     are_we_flying = true;
 
 

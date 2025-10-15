@@ -17,12 +17,32 @@ pub async fn run_app() -> anyhow::Result<()> {
 
     tokio::select! {
 
-        _ = xplane::listen_to_xplane(app_state.clone()) => {},
-        _ = xplane::listen_to_send_commands(rx_command) => {},
+        val = xplane::listen_to_xplane(app_state.clone()) => {
+            match val {
+                Ok(()) => {},
+                Err(e) => { tracing::event!(tracing::Level::ERROR, "Error in listen_to_xplane: {:}", e)},
+            }
+        },
+        val = xplane::listen_to_send_commands(rx_command) => {
+            match val {
+                Ok(()) => {},
+                Err(e) => { tracing::event!(tracing::Level::ERROR, "Error in listen_to_send_commands: {:}", e)},
+            }
+        },
 
-        _ = autopilot::run_autopilot(app_state.clone(), tx_command) => {},
+        val = autopilot::run_autopilot(app_state.clone(), tx_command) => {
+            match val {
+                Ok(()) => {},
+                Err(e) => { tracing::event!(tracing::Level::ERROR, "Error in run_autopilot: {:}", e)},
+            }
+        },
         
-        _ = dataconnector::share_with_external(app_state.clone()) => {},
+        val = dataconnector::share_with_external(app_state.clone()) => {
+            match val {
+                Ok(()) => {},
+                Err(e) => { tracing::event!(tracing::Level::ERROR, "Error in share_with_external: {:}", e)},
+            }
+        },
 
         // process that runs a terminal, that looks for input (eg "q" press)
         // this is the process that will run to completion and then the tokio::select will cancel the rest

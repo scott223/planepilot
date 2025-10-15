@@ -1,3 +1,4 @@
+use anyhow::Context;
 use itertools::Itertools;
 use tracing::event;
 
@@ -12,15 +13,24 @@ pub(super) async fn share_with_external(
                 .expect("cannot get lock on app state")
                 .clone();
 
-            send_state(state)
-                .await
-                .expect("error when sending state to external provider");
+            if !state.plane_state.is_empty() {
+
+            match send_state(state)
+                .await {
+                    Ok(()) => {} ,
+                    Err(e) => {         event!(
+            tracing::Level::ERROR,
+            "Error while sending state to external data provider: {:}", e
+        ); }
+                }
+            }
         }
 
         event!(
             tracing::Level::TRACE,
             "Plane state shared with external data provider"
         );
+
         let _ = tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
     }
 }
