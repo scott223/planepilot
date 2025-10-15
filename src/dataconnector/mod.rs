@@ -2,7 +2,7 @@ use itertools::Itertools;
 use tracing::event;
 
 // share the state with external data store on a set time interval
-pub async fn share_with_external(
+pub(super) async fn share_with_external(
     app_state: std::sync::Arc<std::sync::Mutex<crate::types::AppState>>,
 ) -> anyhow::Result<()> {
     loop {
@@ -18,7 +18,7 @@ pub async fn share_with_external(
         }
 
         event!(
-            tracing::Level::INFO,
+            tracing::Level::TRACE,
             "Plane state shared with external data provider"
         );
         let _ = tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
@@ -40,11 +40,16 @@ async fn send_state(app_state: crate::types::AppState) -> anyhow::Result<()> {
     );
 
     line.push_str(" ");
-
     line.push_str("autopilot_state ");
+
+    //using JSON to flatten the struct into a string, and then convert 
+    // TODO make this more idiomatic :)
+
+    let s = serde_json::to_string(&app_state.autopilot_state).unwrap();
+    let map: std::collections::HashMap<String, serde_json::Value> = serde_json::from_str(&s).unwrap();
+
     line.push_str(
-        &app_state
-            .autopilot_state
+        &map
             .iter()
             .filter(|(_k, v)| v.is_number())
             .map(|(k, v)| format!("{}={}", k, v.as_f64().unwrap()))

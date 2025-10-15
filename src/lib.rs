@@ -7,13 +7,21 @@ pub mod dataconnector;
 pub mod types;
 pub mod utils;
 pub mod xplane;
+pub mod autopilot;
 
 pub async fn run_app() -> anyhow::Result<()> {
     let app_state = Arc::new(Mutex::new(types::AppState::new()));
+    let (tx_command, rx_command) = tokio::sync::mpsc::channel(32);
+
+    tracing::event!(tracing::Level::INFO, "Planepilot started");
 
     tokio::select! {
 
         _ = xplane::listen_to_xplane(app_state.clone()) => {},
+        _ = xplane::listen_to_send_commands(rx_command) => {},
+
+        _ = autopilot::run_autopilot(app_state.clone(), tx_command) => {},
+        
         _ = dataconnector::share_with_external(app_state.clone()) => {},
 
         // process that runs a terminal, that looks for input (eg "q" press)

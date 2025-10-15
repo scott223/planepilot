@@ -3,12 +3,12 @@ use tracing::event;
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
-    planepilot::utils::start_tracing_subscriber();
 
     if std::env::var("RUST_LOG").is_err() {
         std::env::set_var("RUST_LOG", "INFO");
     }
 
+    planepilot::utils::start_tracing_subscriber();
     logo();
 
     planepilot::run_app().await.unwrap();

@@ -1,12 +1,14 @@
 use serde_json::{Number, Value};
 use std::collections::BTreeMap;
 
-use tokio::net::UdpSocket;
+use tokio::{net::UdpSocket, sync::mpsc};
 
 use anyhow::anyhow;
 use tracing::{event, Level};
 
 use datamap::DataType;
+
+use crate::types::{Command, CommandType};
 
 pub mod datamap;
 
@@ -16,7 +18,7 @@ pub mod datamap;
 const FLOAT_LEN: usize = 4;
 const IP_ADRR: &str = "127.0.0.1";
 const LISTENING_PORT: &str = "49101";
-//const SENDING_PORT: &str = "49000";
+const SENDING_PORT: &str = "49000";
 
 pub enum PacketType {
     Data,
@@ -24,7 +26,7 @@ pub enum PacketType {
 }
 
 // Listens to mpsc channel if commands are received, and turn them into an UDP packet to send to xplane
-/*
+
 pub(super) async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> anyhow::Result<()> {
     let socket = UdpSocket::bind(IP_ADRR.to_owned() + ":49100")
         .await
@@ -77,15 +79,13 @@ pub(super) async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> 
             );
 
             // we add a 15 ms delay here, to make sure we dont saturate the xplane UDP interface
-            let _ = tokio::time::sleep(Duration::from_millis(15)).await;
+            let _ = tokio::time::sleep(tokio::time::Duration::from_millis(15)).await;
         }
     }
 }
 
-*/
-
 // Listen to xplane UDP packets, and update the state accordingly
-pub async fn listen_to_xplane(
+pub(super) async fn listen_to_xplane(
     app_state: std::sync::Arc<std::sync::Mutex<crate::types::AppState>>,
 ) -> anyhow::Result<()> {
     let socket = UdpSocket::bind(IP_ADRR.to_owned() + ":" + LISTENING_PORT).await?;

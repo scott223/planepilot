@@ -46,7 +46,7 @@ impl LowPassFilter {
 
 // App state - has a receiver to receive signals and a trait to respond to it, no memory sharing
 #[derive(Debug, Clone)]
-pub struct AppState {
+pub(super) struct AppState {
     pub plane_state: BTreeMap<String, Value>,
     pub autopilot_state: AutoPilotState,
 }
@@ -63,6 +63,10 @@ impl AppState {
         for (key, val) in values.iter() {
             self.plane_state.insert(key.to_string(), val.clone());
         }
+
+        // add a timestamp
+        self.plane_state.insert("last_updated_timestamp".to_string(), Value::Number(serde_json::Number::from_i128(chrono::Utc::now().timestamp_millis().into()).unwrap()));
+        
     }
 
     /*
@@ -349,6 +353,21 @@ impl AutoPilotState {
             vertical_control_metrics: AutoPilotVerticalMetrics::default(),
             control_constants: AutoPilotConstants::new(),
         }
+    }
+
+    pub fn set_autopilot_to_standby_and_clean_parameters(&mut self) {
+
+        self.vertical_guidance.vertical_mode = VerticalModes::Standby;
+        self.horizontal_guidance.horizontal_mode = HorizontalModes::Standby;
+
+        self.vertical_guidance.energy_error_integral = 0.0;
+        self.vertical_guidance.pitch_error_integral = 0.0;
+        self.horizontal_guidance.heading_error_integral = 0.0;
+        self.horizontal_guidance.roll_error_integral = 0.0;
+
+        self.horizontal_control_metrics = AutoPilotHorizontalMetrics::default();
+        self.vertical_control_metrics = AutoPilotVerticalMetrics::default();
+
     }
 }
 #[derive(Debug, Deserialize, Default, Serialize, Clone)]
