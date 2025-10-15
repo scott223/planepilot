@@ -7,19 +7,20 @@ pub async fn share_with_external(
 ) -> anyhow::Result<()> {
     loop {
         {
-            send_state(
-                app_state
-                    .lock()
-                    .expect("cannot get lock on app state")
-                    .clone(),
-            )
-            .await
-            .expect("error when sending state to external provider");
-            event!(
-                tracing::Level::INFO,
-                "Plane state shared with external data provider"
-            );
+            let state = app_state
+                .lock()
+                .expect("cannot get lock on app state")
+                .clone();
+
+            send_state(state)
+                .await
+                .expect("error when sending state to external provider");
         }
+
+        event!(
+            tracing::Level::INFO,
+            "Plane state shared with external data provider"
+        );
         let _ = tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
     }
 }
@@ -39,11 +40,23 @@ async fn send_state(app_state: crate::types::AppState) -> anyhow::Result<()> {
     );
 
     line.push_str(" ");
+
+    line.push_str("autopilot_state ");
+    line.push_str(
+        &app_state
+            .autopilot_state
+            .iter()
+            .filter(|(_k, v)| v.is_number())
+            .map(|(k, v)| format!("{}={}", k, v.as_f64().unwrap()))
+            .join(","),
+    );
+
+    line.push_str(" ");
     line.push_str(&timestamp.to_string());
 
-    //dbg!(line.clone());
+    // dbg!(line.clone());
 
-    //let params = [("bucket", "Planepilot")];
+    // let params = [("bucket", "Planepilot")];
     let client = reqwest::Client::new();
     let res = client
     .post("https://eu-central-1-1.aws.cloud2.influxdata.com/api/v2/write/?bucket=Planepilot")
@@ -61,7 +74,7 @@ async fn send_state(app_state: crate::types::AppState) -> anyhow::Result<()> {
         }
     }
 
-    //line += &timestamp.timestamp().to_string();
-    //dbg!(line);
+    // line += &timestamp.timestamp().to_string();
+    // dbg!(line);
     Ok(())
 }

@@ -126,11 +126,10 @@ pub async fn listen_to_xplane(
                     .expect("error unwrapping the map_values");
 
                 // add the value to the overall app state, using the Mutex
-                let _ = app_state
-                    .lock()
-                    .expect("cannot get lock on app_state")
-                    .add_vales(values)
-                    .await;
+                {
+                    let mut state = app_state.lock().expect("cannot get lock on app state");
+                    state.add_vales(values).await;
+                }
             }
         }
     }

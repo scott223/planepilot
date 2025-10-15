@@ -1,5 +1,11 @@
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::BTreeMap;
+use std::{
+    collections::BTreeMap,
+    fs::File,
+    io::{Read, Write},
+    path::Path,
+};
 
 // first-order low-pass filter
 pub struct LowPassFilter {
@@ -42,12 +48,14 @@ impl LowPassFilter {
 #[derive(Debug, Clone)]
 pub struct AppState {
     pub plane_state: BTreeMap<String, Value>,
+    pub autopilot_state: AutoPilotState,
 }
 
 impl AppState {
     pub fn new() -> Self {
         AppState {
             plane_state: BTreeMap::new(),
+            autopilot_state: AutoPilotState::new(),
         }
     }
 
@@ -190,5 +198,200 @@ impl Command {
 
     pub fn return_value(&self) -> f64 {
         self.value
+    }
+}
+#[derive(Debug, Default, Serialize, Clone)]
+pub(super) struct AutoPilotState {
+    pub are_we_flying: bool,
+    #[serde(flatten)]
+    pub vertical_guidance: VerticalGuidance,
+    #[serde(flatten)]
+    pub horizontal_guidance: HorizontalGuidance,
+    #[serde(flatten)]
+    pub control_constants: AutoPilotConstants,
+    #[serde(flatten)]
+    pub horizontal_control_metrics: AutoPilotHorizontalMetrics,
+    #[serde(flatten)]
+    pub vertical_control_metrics: AutoPilotVerticalMetrics,
+}
+
+#[derive(Debug, Default, Serialize, Clone)]
+pub(super) struct AutoPilotVerticalMetrics {
+    pub altitude_msl: f64,
+    pub altitude_target: f64,
+    pub altitude_error: f64,
+    pub velocity: f64,
+    pub velocity_target: f64,
+    pub velocity_error: f64,
+    pub kinetic_energy: f64,
+    pub kinetic_energy_target: f64,
+    pub potential_energy: f64,
+    pub potential_energy_target: f64,
+    pub energy: f64,
+    pub energy_target: f64,
+    pub energy_error: f64,
+    pub pitch: f64,
+    pub pitch_target: f64,
+    pub pitch_error: f64,
+    pub pitch_rate: f64,
+    pub pitch_rate_target: f64,
+    pub pitch_rate_error: f64,
+    pub elevator_setpoint: f64,
+}
+
+#[derive(Debug, Default, Serialize, Clone)]
+pub(super) struct AutoPilotHorizontalMetrics {
+    pub heading: f64,
+    pub heading_target: f64,
+    pub heading_error: f64,
+    pub roll_angle: f64,
+    pub roll_angle_target: f64,
+    pub roll_angle_error: f64,
+    pub roll_angle_rate: f64,
+    pub roll_angle_rate_target: f64,
+    pub roll_angle_rate_error: f64,
+    pub aileron_setpoint: f64,
+}
+
+#[derive(Debug, Deserialize, Default, Serialize, Clone)]
+pub(super) struct AutoPilotConstants {
+    pub heading_error_p: f64,
+    pub heading_roll_error_d: f64,
+    pub roll_p: f64,
+    pub roll_d: f64,
+    pub roll_i: f64,
+    pub tecs_cruise_throttle_slope: f64,
+    pub tecs_cruise_throttle_base: f64,
+    pub tecs_energy_p: f64,
+    pub tecs_energy_i: f64,
+    pub pitch_error_p: f64,
+    pub pitch_rate_error_p: f64,
+    pub elevator_p: f64,
+    pub elevator_d: f64,
+    pub elevator_i: f64,
+    pub max_aileron: f64,
+    pub max_roll: f64,
+    pub max_roll_rate: f64,
+    pub max_elevator: f64,
+    pub max_pitch: f64,
+    pub max_pitch_rate: f64,
+}
+
+impl AutoPilotConstants {
+    pub fn new() -> Self {
+        AutoPilotConstants {
+            heading_error_p: 0.4,
+            heading_roll_error_d: 0.2,
+            roll_p: 0.01,
+            roll_d: 0.01,
+            roll_i: 0.001,
+            tecs_cruise_throttle_slope: 0.0000001,
+            tecs_cruise_throttle_base: 0.48,
+            tecs_energy_p: 0.001,
+            tecs_energy_i: 0.001,
+            pitch_error_p: -1.5,
+            pitch_rate_error_p: 0.3,
+            elevator_p: 0.15,
+            elevator_d: 0.015,
+            elevator_i: 0.0015,
+            max_aileron: 0.3,
+            max_roll: 30.0,
+            max_roll_rate: 3.0,
+            max_elevator: 0.5,
+            max_pitch: 15.0,
+            max_pitch_rate: 15.0,
+        }
+    }
+
+    pub fn from_file() -> Self {
+        let path = Path::new("./constants.json");
+        let mut file = File::open(path).unwrap();
+        let mut data = String::new();
+        file.read_to_string(&mut data).unwrap();
+
+        let json: AutoPilotConstants = serde_json::from_str(&data).unwrap();
+        json
+    }
+
+    pub fn _to_file(&self) -> anyhow::Result<()> {
+        let path = Path::new("./constants.json");
+        let mut file = std::fs::File::create(path)?;
+        let list_as_json = serde_json::to_string(self).unwrap();
+
+        file.write_all(list_as_json.as_bytes())
+            .expect("Cannot write to the file!");
+
+        Ok(())
+    }
+}
+
+impl AutoPilotState {
+    pub fn new() -> Self {
+        AutoPilotState {
+            are_we_flying: false,
+            vertical_guidance: VerticalGuidance {
+                vertical_mode: VerticalModes::TECS,
+                velocity_setpoint: 100.0,
+                velocity_standby: 80.0,
+                altitude_setpoint: 3100.0,
+                altitude_standby: 3500.0,
+                energy_error_integral: 0.0,
+                pitch_error_integral: 0.0,
+            },
+            horizontal_guidance: HorizontalGuidance {
+                horizontal_mode: HorizontalModes::Heading,
+                heading_setpoint: 90.0,
+                heading_standby: 120.0,
+                heading_error_integral: 0.0,
+                roll_error_integral: 0.0,
+            },
+            horizontal_control_metrics: AutoPilotHorizontalMetrics::default(),
+            vertical_control_metrics: AutoPilotVerticalMetrics::default(),
+            control_constants: AutoPilotConstants::new(),
+        }
+    }
+}
+#[derive(Debug, Deserialize, Default, Serialize, Clone)]
+pub struct VerticalGuidance {
+    pub vertical_mode: VerticalModes,
+    pub velocity_setpoint: f64,
+    pub velocity_standby: f64,
+    pub altitude_setpoint: f64,
+    pub altitude_standby: f64,
+    pub energy_error_integral: f64,
+    pub pitch_error_integral: f64,
+}
+
+#[derive(Debug, Deserialize, Default, Serialize, Clone)]
+pub struct HorizontalGuidance {
+    pub horizontal_mode: HorizontalModes,
+    pub heading_setpoint: f64,
+    pub heading_standby: f64,
+    pub heading_error_integral: f64,
+    pub roll_error_integral: f64,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub enum VerticalModes {
+    Standby,
+    TECS,
+}
+
+impl Default for VerticalModes {
+    fn default() -> Self {
+        VerticalModes::Standby
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub enum HorizontalModes {
+    Standby,
+    WingsLevel,
+    Heading,
+}
+
+impl Default for HorizontalModes {
+    fn default() -> Self {
+        HorizontalModes::Standby
     }
 }
