@@ -1,32 +1,48 @@
-use std::time::Duration;
+use std::sync::{Arc, Mutex};
 
-use tokio::sync::mpsc;
+use crossterm::event::{Event, EventStream, KeyCode};
+use futures::StreamExt;
+
+pub mod dataconnector;
+pub mod types;
+pub mod utils;
+pub mod xplane;
 
 pub async fn run_app() -> anyhow::Result<()> {
-    // set up a channel for xplane commands, and state signals
-    //let (tx_command, rx_command) = mpsc::channel(32);
-    //let (tx_state, rx_state) = mpsc::channel(32);
+    let app_state = Arc::new(Mutex::new(types::AppState::new()));
 
-    // set up the app state and a proxy, that is linked through a channel. we can then clone and share the proxy with all the different procsesses
-    //let app_state: AppState = AppState::new(rx_state);
-    //let app_state_proxy: AppStateProxy = AppStateProxy::new(service_adresses, tx_state, tx_command);
+    tokio::select! {
 
-    //tokio::select! {
+        _ = xplane::listen_to_xplane(app_state.clone()) => {},
+        _ = dataconnector::share_with_external(app_state.clone()) => {},
 
-        // process that runs on the app state, that will listen to the signals from the proxy and processes these
-        //_ = app_state.process() => { }
+        // process that runs a terminal, that looks for input (eg "q" press)
+        // this is the process that will run to completion and then the tokio::select will cancel the rest
+        _ = run_terminal() => { }
+    }
 
-        // process that listens to xplane udp packets, and updatates the state accordingly
-        //_ = xplaneudp::listen_to_xplane() => { }
+    Ok(())
+}
 
-        // process that listens to incomming commands (through the http server), and send them to xplane
-        //_ = xplaneudp::listen_to_send_commands(rx_command) => { }
+// listents to terminal inputs, and breaks on "q"
+async fn run_terminal() -> Result<(), ()> {
+    let mut reader = EventStream::new();
 
-        // process that runs an http server, to share state and receive commands from the autopilot
-        //_ = httpserver::run_server(app_state_proxy.clone()) => { }
-
-        //_ = share_state_with_data_server(app_state_proxy.clone()) => { }
-    //}
+    loop {
+        tokio::select! {
+            maybe_event = reader.next() => {
+                match maybe_event {
+                    Some(Ok(event)) => {
+                        if event == Event::Key(KeyCode::Char('q').into()) {
+                            break;
+                        }
+                    }
+                    Some(Err(e)) => println!("Error: {:?}\r", e),
+                    None => break,
+                }
+            }
+        };
+    }
 
     Ok(())
 }
