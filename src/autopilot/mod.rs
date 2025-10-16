@@ -1,13 +1,17 @@
 use anyhow::Context;
 use tracing::{event, Level};
 
+use crate::types::Command;
+
 pub mod horizontalguidance;
+
+const MILLISECONDS_PER_LOOP: u64 = 200;
 
 pub(super) async fn run_autopilot(
     app_state: std::sync::Arc<std::sync::Mutex<crate::types::AppState>>,
     tx: tokio::sync::mpsc::Sender<crate::types::Command>,
 ) -> anyhow::Result<()> {
-    const MILLISECONDS_PER_LOOP: u64 = 200;
+    let dt: f64 = MILLISECONDS_PER_LOOP as f64 / 1000.0;
 
     loop {
         {
@@ -53,14 +57,30 @@ pub(super) async fn run_autopilot(
 
                 */
 
-                horizontalguidance::execute_horizontal_guidance(
-                    dt,
-                    &reqwest_client,
-                    &app_state_proxy,
-                    &auto_pilot_state,
-                    &plane_state,
-                )
-                .await?
+                match horizontalguidance::execute_horizontal_guidance(&dt, &mut state, &tx).await {
+                    Ok(c) => {
+                        match c {
+                            Some(c) => {
+                                //TODO error handling
+                                match send_command(&tx, c).await {
+                                    Err(e) => {
+                                        event!(Level::ERROR, "There was an error sending the command for horizontal guidance. Error: {:}", e);
+                                    }
+                                    _ => {} // horizontal guidance command succesfully sent
+                                }
+                            }
+                            None => {
+                                event!(
+                                    Level::TRACE,
+                                    "Horizontal guidance was executed, but no command sent"
+                                );
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        event!(Level::ERROR, "There was an error in the horizontal guidance. No aileron command sent. Error: {:}", e);
+                    }
+                }
             } else {
                 if state.autopilot_state.are_we_flying {
                     state
@@ -140,5 +160,15 @@ pub(super) async fn run_autopilot(
         }
 
         let _ = tokio::time::sleep(tokio::time::Duration::from_millis(MILLISECONDS_PER_LOOP)).await;
+    }
+}
+
+async fn send_command(
+    tx: &tokio::sync::mpsc::Sender<Command>,
+    command: Command,
+) -> anyhow::Result<()> {
+    match tx.send(command).await {
+        Ok(_) => return Ok(()),
+        Err(e) => return Err(e.into()),
     }
 }

@@ -87,7 +87,7 @@ impl AppState {
         );
     }
 
-    pub async fn return_plane_state_struct(self) -> PlaneStateStruct {
+    pub async fn return_plane_state_struct(&self) -> PlaneStateStruct {
         //dbg!(self.plane_state.clone());
         let state_struct = PlaneStateStruct {
             v_ind: self.plane_state.get("Vind").unwrap().as_f64().unwrap(),
@@ -203,7 +203,7 @@ impl AppState {
 
 // Define the types of commands that can be sent to xplane
 #[derive(Debug, Clone, Copy)]
-pub(super) enum CommandType {
+pub(crate) enum CommandType {
     Throttle,
     Aileron,
     Elevator,
@@ -212,7 +212,7 @@ pub(super) enum CommandType {
 
 // Define a command to be sent to xplane
 #[derive(Debug)]
-pub(super) struct Command {
+pub(crate) struct Command {
     command_type: CommandType,
     value: f64,
 }

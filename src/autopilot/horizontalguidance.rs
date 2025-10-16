@@ -1,12 +1,17 @@
-use crate::types::{Command, HorizontalModes};
+use crate::types::{AutoPilotHorizontalMetrics, Command, HorizontalModes, PlaneStateStruct};
 
 pub(super) async fn execute_horizontal_guidance(
-    dt: f64,
-    app_state: crate::types::AppState,
-    tx: tokio::sync::mpsc::Sender<Command>,
-) -> anyhow::Result<()> {
+    dt: &f64,
+    app_state: &mut std::sync::MutexGuard<'_, crate::types::AppState>,
+    tx: &tokio::sync::mpsc::Sender<Command>,
+) -> anyhow::Result<Option<Command>> {
     let p: f64 = app_state.autopilot_state.control_constants.roll_p;
     let d: f64 = app_state.autopilot_state.control_constants.roll_d;
+
+    // TODO
+    //want to rewrite to
+    // first determin the right roll, and then have an inner loop control the ailerons to achieve that roll. can merge the heading and the wings level inner loop
+
 
     match app_state
         .autopilot_state
@@ -15,9 +20,10 @@ pub(super) async fn execute_horizontal_guidance(
     {
         HorizontalModes::Standby => {
             //println!("Horizontal mode standby, no autopilot input for ailerons");
-            Ok(())
+            return Ok(None);
         }
         HorizontalModes::Heading => {
+            return Ok(None);
 
             /*
             let kp: f64 = auto_pilot_state.control_constants.heading_error_p;
@@ -78,10 +84,13 @@ pub(super) async fn execute_horizontal_guidance(
         }
 
         HorizontalModes::WingsLevel => {
-            /*
+            let plane_state_struct: PlaneStateStruct = app_state.return_plane_state_struct().await;
 
-            let aileron: f64 = (-(app_state.plane_state_struct.roll * p + plane_state_struct.roll_rate * d))
-                .clamp(-auto_pilot_state.control_constants.max_aileron, auto_pilot_state.control_constants.max_aileron);
+            let aileron: f64 = (-(plane_state_struct.roll * p + plane_state_struct.roll_rate * d))
+                .clamp(
+                    -app_state.autopilot_state.control_constants.max_aileron,
+                    app_state.autopilot_state.control_constants.max_aileron,
+                );
 
             tracing::event!(tracing::Level::TRACE,
                 "Wings level mode - roll [deg]: {:.4}, roll_rate [deg/s]: {:.4}, aileron [0-1]: {:.4}",
@@ -101,12 +110,8 @@ pub(super) async fn execute_horizontal_guidance(
                 aileron_setpoint: aileron,
             };
 
-            app_state_proxy.update_horizontal_control_metrics(horizontal_metrics).await?;
-            send_command(app_state_proxy, client, CommandType::Aileron, aileron).await?;
-
-            */
+            app_state.autopilot_state.horizontal_control_metrics = horizontal_metrics;
+            return Ok(Some(Command::new_aileron(aileron)));
         }
     }
-
-    Ok(())
 }
