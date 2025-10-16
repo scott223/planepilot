@@ -51,6 +51,19 @@ pub(super) struct AppState {
     pub autopilot_state: AutoPilotState,
 }
 
+// struct to use in autopilot
+pub(super) struct PlaneStateStruct {
+    pub v_ind: f64,
+    pub altitude_msl: f64,
+    pub vpath: f64,
+    pub roll: f64,
+    pub roll_rate: f64,
+    pub pitch: f64,
+    pub pitch_rate: f64,
+    pub gload_axial: f64,
+    pub heading: f64,
+}
+
 impl AppState {
     pub fn new() -> Self {
         AppState {
@@ -72,6 +85,38 @@ impl AppState {
                     .unwrap(),
             ),
         );
+    }
+
+    pub async fn return_plane_state_struct(self) -> PlaneStateStruct {
+        //dbg!(self.plane_state.clone());
+        let state_struct = PlaneStateStruct {
+            v_ind: self.plane_state.get("Vind").unwrap().as_f64().unwrap(),
+            altitude_msl: self
+                .plane_state
+                .get("altitude_msl")
+                .unwrap()
+                .as_f64()
+                .unwrap(),
+            vpath: self.plane_state.get("vpath").unwrap().as_f64().unwrap(),
+            roll: self.plane_state.get("roll").unwrap().as_f64().unwrap(),
+            roll_rate: self.plane_state.get("P").unwrap().as_f64().unwrap(),
+            pitch: self.plane_state.get("pitch").unwrap().as_f64().unwrap(),
+            pitch_rate: self.plane_state.get("Q").unwrap().as_f64().unwrap(),
+            gload_axial: self
+                .plane_state
+                .get("Gload_axial")
+                .unwrap()
+                .as_f64()
+                .unwrap(),
+            heading: self
+                .plane_state
+                .get("heading_true")
+                .unwrap()
+                .as_f64()
+                .unwrap(),
+        };
+
+        state_struct
     }
 
     /*

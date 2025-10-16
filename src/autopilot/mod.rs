@@ -1,6 +1,8 @@
 use anyhow::Context;
 use tracing::{event, Level};
 
+pub mod horizontalguidance;
+
 pub(super) async fn run_autopilot(
     app_state: std::sync::Arc<std::sync::Mutex<crate::types::AppState>>,
     tx: tokio::sync::mpsc::Sender<crate::types::Command>,
@@ -27,12 +29,38 @@ pub(super) async fn run_autopilot(
 
             if are_we_flying {
                 if !state.autopilot_state.are_we_flying {
+                    state
+                        .autopilot_state
+                        .set_autopilot_to_standby_and_clean_parameters();
+
                     state.autopilot_state.are_we_flying = true;
+
                     event!(
                         Level::INFO,
                         "Recent (< 1 sec) plane data available, setting to flying!"
                     );
                 }
+
+                /*
+                    verticalguidance::execute_vertical_guidance(
+                        dt,
+                        &reqwest_client,
+                        &app_state_proxy,
+                        &auto_pilot_state,
+                        &plane_state,
+                    )
+                    .await?;
+
+                */
+
+                horizontalguidance::execute_horizontal_guidance(
+                    dt,
+                    &reqwest_client,
+                    &app_state_proxy,
+                    &auto_pilot_state,
+                    &plane_state,
+                )
+                .await?
             } else {
                 if state.autopilot_state.are_we_flying {
                     state
