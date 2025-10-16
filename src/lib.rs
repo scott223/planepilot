@@ -3,11 +3,11 @@ use std::sync::{Arc, Mutex};
 use crossterm::event::{Event, EventStream, KeyCode};
 use futures::StreamExt;
 
+pub mod autopilot;
 pub mod dataconnector;
 pub mod types;
 pub mod utils;
 pub mod xplane;
-pub mod autopilot;
 
 pub async fn run_app() -> anyhow::Result<()> {
     let app_state = Arc::new(Mutex::new(types::AppState::new()));
@@ -36,7 +36,7 @@ pub async fn run_app() -> anyhow::Result<()> {
                 Err(e) => { tracing::event!(tracing::Level::ERROR, "Error in run_autopilot: {:}", e)},
             }
         },
-        
+
         val = dataconnector::share_with_external(app_state.clone()) => {
             match val {
                 Ok(()) => {},

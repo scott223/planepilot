@@ -65,8 +65,13 @@ impl AppState {
         }
 
         // add a timestamp
-        self.plane_state.insert("last_updated_timestamp".to_string(), Value::Number(serde_json::Number::from_i128(chrono::Utc::now().timestamp_millis().into()).unwrap()));
-        
+        self.plane_state.insert(
+            "last_updated_timestamp".to_string(),
+            Value::Number(
+                serde_json::Number::from_i128(chrono::Utc::now().timestamp_millis().into())
+                    .unwrap(),
+            ),
+        );
     }
 
     /*
@@ -197,7 +202,7 @@ impl Command {
     }
 
     pub fn return_command_type(&self) -> CommandType {
-        self.command_type
+        self.command_type.clone()
     }
 
     pub fn return_value(&self) -> f64 {
@@ -356,7 +361,6 @@ impl AutoPilotState {
     }
 
     pub fn set_autopilot_to_standby_and_clean_parameters(&mut self) {
-
         self.vertical_guidance.vertical_mode = VerticalModes::Standby;
         self.horizontal_guidance.horizontal_mode = HorizontalModes::Standby;
 
@@ -367,7 +371,6 @@ impl AutoPilotState {
 
         self.horizontal_control_metrics = AutoPilotHorizontalMetrics::default();
         self.vertical_control_metrics = AutoPilotVerticalMetrics::default();
-
     }
 }
 #[derive(Debug, Deserialize, Default, Serialize, Clone)]

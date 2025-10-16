@@ -1,4 +1,3 @@
-use anyhow::Context;
 use itertools::Itertools;
 use tracing::event;
 
@@ -14,14 +13,15 @@ pub(super) async fn share_with_external(
                 .clone();
 
             if !state.plane_state.is_empty() {
-
-            match send_state(state)
-                .await {
-                    Ok(()) => {} ,
-                    Err(e) => {         event!(
-            tracing::Level::ERROR,
-            "Error while sending state to external data provider: {:}", e
-        ); }
+                match send_state(state).await {
+                    Ok(()) => {}
+                    Err(e) => {
+                        event!(
+                            tracing::Level::ERROR,
+                            "Error while sending state to external data provider: {:}",
+                            e
+                        );
+                    }
                 }
             }
         }
@@ -52,15 +52,15 @@ async fn send_state(app_state: crate::types::AppState) -> anyhow::Result<()> {
     line.push_str(" ");
     line.push_str("autopilot_state ");
 
-    //using JSON to flatten the struct into a string, and then convert 
+    //using JSON to flatten the struct into a string, and then convert
     // TODO make this more idiomatic :)
 
     let s = serde_json::to_string(&app_state.autopilot_state).unwrap();
-    let map: std::collections::HashMap<String, serde_json::Value> = serde_json::from_str(&s).unwrap();
+    let map: std::collections::HashMap<String, serde_json::Value> =
+        serde_json::from_str(&s).unwrap();
 
     line.push_str(
-        &map
-            .iter()
+        &map.iter()
             .filter(|(_k, v)| v.is_number())
             .map(|(k, v)| format!("{}={}", k, v.as_f64().unwrap()))
             .join(","),
