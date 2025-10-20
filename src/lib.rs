@@ -8,6 +8,7 @@ pub mod dataconnector;
 pub mod types;
 pub mod utils;
 pub mod xplane;
+pub mod httpserver;
 
 pub async fn run_app() -> anyhow::Result<()> {
     let app_state = Arc::new(Mutex::new(types::AppState::new()));
@@ -30,13 +31,18 @@ pub async fn run_app() -> anyhow::Result<()> {
             }
         },
 
-        val = autopilot::run_autopilot(app_state.clone(), tx_command) => {
+        val = autopilot::run_autopilot(app_state.clone(), tx_command.clone()) => {
             match val {
                 Ok(()) => {},
                 Err(e) => { tracing::event!(tracing::Level::ERROR, "Error in run_autopilot: {:}", e)},
             }
         },
-
+        val = httpserver::run_server(app_state.clone(), tx_command.clone()) => {
+            match val {
+                Ok(()) => {},
+                Err(e) => { tracing::event!(tracing::Level::ERROR, "Error in run_server: {:}", e)},
+            }
+        },
         val = dataconnector::share_with_external(app_state.clone()) => {
             match val {
                 Ok(()) => {},

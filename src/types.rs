@@ -309,6 +309,7 @@ pub(super) struct AutoPilotHorizontalMetrics {
 #[derive(Debug, Deserialize, Default, Serialize, Clone)]
 pub(super) struct AutoPilotConstants {
     pub heading_error_p: f64,
+    pub heading_error_i: f64,
     pub heading_roll_error_d: f64,
     pub roll_p: f64,
     pub roll_d: f64,
@@ -334,6 +335,7 @@ impl AutoPilotConstants {
     pub fn new() -> Self {
         AutoPilotConstants {
             heading_error_p: 0.4,
+            heading_error_i: 0.1,
             heading_roll_error_d: 0.2,
             roll_p: 0.01,
             roll_d: 0.01,

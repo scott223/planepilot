@@ -1,4 +1,5 @@
-// use tracing::Level;
+use tower_http::{classify::{ServerErrorsAsFailures, SharedClassifier}, trace::TraceLayer};
+use tracing::Level;
 
 // initiate tracing
 
@@ -8,7 +9,6 @@ pub fn start_tracing_subscriber() {
         .init();
 }
 
-/*
 // prepare a trace layer for the http server that wlil connect the server to tracing
 
 pub fn return_trace_layer() -> TraceLayer<SharedClassifier<ServerErrorsAsFailures>> {
@@ -21,4 +21,3 @@ pub fn return_trace_layer() -> TraceLayer<SharedClassifier<ServerErrorsAsFailure
                 .latency_unit(tower_http::LatencyUnit::Micros),
         ) //todo on error, etc
 }
-*/

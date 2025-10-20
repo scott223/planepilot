@@ -54,7 +54,6 @@ async fn send_state(app_state: crate::types::AppState) -> anyhow::Result<()> {
 
     //using JSON to flatten the struct into a string, and then convert
     // TODO make this more idiomatic :)
-
     let s = serde_json::to_string(&app_state.autopilot_state).unwrap();
     let map: std::collections::HashMap<String, serde_json::Value> =
         serde_json::from_str(&s).unwrap();

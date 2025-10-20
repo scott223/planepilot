@@ -1,5 +1,6 @@
 {
     "heading_error_p": 0.45,
+    "heading_error_I": 0.1,
     "heading_roll_error_d": 0.02,
     "roll_p": 0.006,
     "roll_d": 0.0004,

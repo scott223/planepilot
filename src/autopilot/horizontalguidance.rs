@@ -5,8 +5,10 @@ pub(super) async fn execute_horizontal_guidance(
     app_state: &mut std::sync::MutexGuard<'_, crate::types::AppState>,
     tx: &tokio::sync::mpsc::Sender<Command>,
 ) -> anyhow::Result<Option<Command>> {
+    let plane_state_struct: PlaneStateStruct = app_state.return_plane_state_struct().await;
+
     //determine the target roll
-    let target_roll: f64 = match app_state
+    let (target_roll, target_roll_rate): (f64, f64) = match app_state
         .autopilot_state
         .horizontal_guidance
         .horizontal_mode
@@ -15,53 +17,95 @@ pub(super) async fn execute_horizontal_guidance(
             // early return as we are not doing any aileron here
             return Ok(None);
         }
-        HorizontalModes::Heading => 0.0,
+        HorizontalModes::Heading => {
+            let heading_error = app_state
+                .autopilot_state
+                .horizontal_guidance
+                .heading_setpoint
+                - plane_state_struct.heading;
+
+            //only add to integral if heading error is less than 30 degrees
+            if heading_error.abs() < 30.0 {
+                app_state
+                    .autopilot_state
+                    .horizontal_guidance
+                    .heading_error_integral += heading_error * dt;
+            }
+
+            // determine target roll
+            let target_roll = ((heading_error
+                * app_state.autopilot_state.control_constants.heading_error_p)
+                + (app_state
+                    .autopilot_state
+                    .horizontal_guidance
+                    .heading_error_integral
+                    * app_state.autopilot_state.control_constants.heading_error_i))
+                .clamp(
+                    -app_state.autopilot_state.control_constants.max_roll,
+                    app_state.autopilot_state.control_constants.max_roll,
+                );
+
+            let roll_error = target_roll - plane_state_struct.roll;
+
+            // determine the target roll rate
+            let target_roll_rate: f64 = (roll_error
+                * app_state
+                    .autopilot_state
+                    .control_constants
+                    .heading_roll_error_d)
+                .clamp(
+                    -app_state.autopilot_state.control_constants.max_roll_rate,
+                    app_state.autopilot_state.control_constants.max_roll_rate,
+                );
+
+            (target_roll, target_roll_rate)
+        }
 
         HorizontalModes::WingsLevel => {
-            // target roll is zero, as we are trying to keep wings level
-            0.0
+            // target roll and target roll rate is zero, as we are trying to keep wings level
+            (0.0, 0.0)
         }
     };
 
     let p: f64 = app_state.autopilot_state.control_constants.roll_p;
     let d: f64 = app_state.autopilot_state.control_constants.roll_d;
 
-    return Ok(None);
-
-    // TODO
-    //want to rewrite to
-    // first determin the right roll, and then have an inner loop control the ailerons to achieve that roll. can merge the heading and the wings level inner loop
-
-    /*
-
-    let plane_state_struct: PlaneStateStruct => app_state.return_plane_state_struct().await;
-
-    let aileron: f64 = (-(plane_state_struct.roll * p + plane_state_struct.roll_rate * d))
+    let aileron: f64 = ((target_roll - plane_state_struct.roll) * p
+        + ((target_roll_rate - plane_state_struct.roll_rate) * d))
         .clamp(
             -app_state.autopilot_state.control_constants.max_aileron,
             app_state.autopilot_state.control_constants.max_aileron,
         );
 
-    tracing::event!(tracing::Level::TRACE,
+    tracing::event!(
+        tracing::Level::TRACE,
         "Wings level mode - roll [deg]: {:.4}, roll_rate [deg/s]: {:.4}, aileron [0-1]: {:.4}",
-        plane_state_struct.roll, plane_state_struct.roll_rate, aileron
+        plane_state_struct.roll,
+        plane_state_struct.roll_rate,
+        aileron
     );
 
     let horizontal_metrics = AutoPilotHorizontalMetrics {
         heading: plane_state_struct.heading,
-        heading_target: 0.,
-        heading_error: 0.,
+        heading_target: app_state
+            .autopilot_state
+            .horizontal_guidance
+            .heading_setpoint,
+        heading_error: (app_state
+            .autopilot_state
+            .horizontal_guidance
+            .heading_setpoint
+            - plane_state_struct.heading),
         roll_angle: plane_state_struct.roll,
-        roll_angle_target: 0.,
-        roll_angle_error: plane_state_struct.roll,
+        roll_angle_target: target_roll,
+        roll_angle_error: target_roll - plane_state_struct.roll,
         roll_angle_rate: plane_state_struct.roll_rate,
-        roll_angle_rate_target: 0.,
-        roll_angle_rate_error: plane_state_struct.roll_rate,
+        roll_angle_rate_target: target_roll_rate,
+        roll_angle_rate_error: target_roll_rate - plane_state_struct.roll_rate,
         aileron_setpoint: aileron,
     };
 
     app_state.autopilot_state.horizontal_control_metrics = horizontal_metrics;
     return Ok(Some(Command::new_aileron(aileron)));
 
-    */
 }
