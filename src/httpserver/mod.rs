@@ -53,7 +53,7 @@ pub(super) async fn run_server(
 
     event!(
         Level::INFO,
-        "pp_autopilot server started to listen on address {:?}",
+        "Autopilot http server started to listen on address {:?}",
         listener
             .local_addr()
             .expect("Error getting local address. Exiting.")
