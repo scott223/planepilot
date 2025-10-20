@@ -81,8 +81,7 @@ impl AppState {
         self.plane_state.insert(
             "last_updated_timestamp".to_string(),
             Value::Number(
-                serde_json::Number::from_i128(chrono::Utc::now().timestamp_millis().into())
-                    .unwrap(),
+                serde_json::Number::from_f64(chrono::Utc::now().timestamp_millis() as f64).unwrap(),
             ),
         );
     }
