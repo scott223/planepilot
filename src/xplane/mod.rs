@@ -128,7 +128,7 @@ pub(super) async fn listen_to_xplane(
                 // add the value to the overall app state, using the Mutex
                 {
                     let mut state = app_state.lock().expect("cannot get lock on app state");
-                    state.add_vales(values).await;
+                    state.add_values(values).await;
                 }
             }
         }

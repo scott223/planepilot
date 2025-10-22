@@ -9,7 +9,6 @@ const MILLISECONDS_PER_LOOP: u64 = 200;
 
 pub(super) async fn run_autopilot(
     app_state: std::sync::Arc<std::sync::Mutex<crate::types::AppState>>,
-    tx: tokio::sync::mpsc::Sender<crate::types::Command>,
 ) -> anyhow::Result<()> {
     let dt: f64 = MILLISECONDS_PER_LOOP as f64 / 1000.0;
 
@@ -57,12 +56,12 @@ pub(super) async fn run_autopilot(
 
                 */
 
-                match horizontalguidance::execute_horizontal_guidance(&dt, &mut state, &tx).await {
+                match horizontalguidance::execute_horizontal_guidance(&dt, &mut state).await {
                     Ok(c) => {
                         match c {
                             Some(c) => {
                                 //TODO error handling
-                                match send_command(&tx, c).await {
+                                match send_command(&state.command_sender, c).await {
                                     Err(e) => {
                                         event!(Level::ERROR, "There was an error sending the command for horizontal guidance. Error: {:}", e);
                                     }

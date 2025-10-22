@@ -3,7 +3,6 @@ use crate::types::{AutoPilotHorizontalMetrics, Command, HorizontalModes, PlaneSt
 pub(super) async fn execute_horizontal_guidance(
     dt: &f64,
     app_state: &mut std::sync::MutexGuard<'_, crate::types::AppState>,
-    tx: &tokio::sync::mpsc::Sender<Command>,
 ) -> anyhow::Result<Option<Command>> {
     let plane_state_struct: PlaneStateStruct = app_state.return_plane_state_struct().await;
 
@@ -79,9 +78,12 @@ pub(super) async fn execute_horizontal_guidance(
 
     tracing::event!(
         tracing::Level::TRACE,
-        "Wings level mode - roll [deg]: {:.4}, roll_rate [deg/s]: {:.4}, aileron [0-1]: {:.4}",
+        "{:?} mode | roll [deg]: {:.4}, roll_error [deg]: {:.4}, roll_rate [deg/s]: {:.4}, roll_rate_error [deg/s]: {:.4}, aileron [0-1]: {:.4}",
+        app_state.autopilot_state.horizontal_guidance.horizontal_mode,
         plane_state_struct.roll,
+        target_roll - plane_state_struct.roll,
         plane_state_struct.roll_rate,
+        target_roll_rate - plane_state_struct.roll_rate,
         aileron
     );
 
@@ -107,5 +109,4 @@ pub(super) async fn execute_horizontal_guidance(
 
     app_state.autopilot_state.horizontal_control_metrics = horizontal_metrics;
     return Ok(Some(Command::new_aileron(aileron)));
-
 }

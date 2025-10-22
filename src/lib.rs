@@ -5,14 +5,14 @@ use futures::StreamExt;
 
 pub mod autopilot;
 pub mod dataconnector;
+pub mod httpserver;
 pub mod types;
 pub mod utils;
 pub mod xplane;
-pub mod httpserver;
 
 pub async fn run_app() -> anyhow::Result<()> {
-    let app_state = Arc::new(Mutex::new(types::AppState::new()));
     let (tx_command, rx_command) = tokio::sync::mpsc::channel(32);
+    let app_state = Arc::new(Mutex::new(types::AppState::new(tx_command.clone())));
 
     tracing::event!(tracing::Level::INFO, "Planepilot started");
 
@@ -31,13 +31,13 @@ pub async fn run_app() -> anyhow::Result<()> {
             }
         },
 
-        val = autopilot::run_autopilot(app_state.clone(), tx_command.clone()) => {
+        val = autopilot::run_autopilot(app_state.clone()) => {
             match val {
                 Ok(()) => {},
                 Err(e) => { tracing::event!(tracing::Level::ERROR, "Error in run_autopilot: {:}", e)},
             }
         },
-        val = httpserver::run_server(app_state.clone(), tx_command.clone()) => {
+        val = httpserver::run_server(app_state.clone()) => {
             match val {
                 Ok(()) => {},
                 Err(e) => { tracing::event!(tracing::Level::ERROR, "Error in run_server: {:}", e)},

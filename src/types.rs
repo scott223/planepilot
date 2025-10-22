@@ -49,6 +49,7 @@ impl LowPassFilter {
 pub(super) struct AppState {
     pub plane_state: BTreeMap<String, Value>,
     pub autopilot_state: AutoPilotState,
+    pub command_sender: tokio::sync::mpsc::Sender<Command>,
 }
 
 // struct to use in autopilot
@@ -65,14 +66,15 @@ pub(super) struct PlaneStateStruct {
 }
 
 impl AppState {
-    pub fn new() -> Self {
+    pub fn new(command_sender: tokio::sync::mpsc::Sender<Command>) -> Self {
         AppState {
             plane_state: BTreeMap::new(),
             autopilot_state: AutoPilotState::new(),
+            command_sender,
         }
     }
 
-    pub async fn add_vales(&mut self, values: BTreeMap<String, Value>) {
+    pub async fn add_values(&mut self, values: BTreeMap<String, Value>) {
         for (key, val) in values.iter() {
             self.plane_state.insert(key.to_string(), val.clone());
         }
@@ -418,7 +420,69 @@ impl AutoPilotState {
         self.horizontal_control_metrics = AutoPilotHorizontalMetrics::default();
         self.vertical_control_metrics = AutoPilotVerticalMetrics::default();
     }
+
+    pub fn set_standby_heading(&mut self, standby_heading: f64) {
+        self.horizontal_guidance.heading_standby = standby_heading.clamp(0., 359.9);
+    }
+
+    pub fn activate_standby_heading(&mut self) {
+        self.horizontal_guidance.heading_setpoint = self.horizontal_guidance.heading_standby;
+
+        std::mem::swap(
+            &mut self.horizontal_guidance.heading_setpoint,
+            &mut self.horizontal_guidance.heading_standby,
+        );
+
+        self.horizontal_guidance.heading_error_integral = 0.0;
+        self.horizontal_guidance.roll_error_integral = 0.0;
+    }
+
+    pub fn activate_horizontal_guidance_standby_mode(&mut self) {
+        self.horizontal_guidance.horizontal_mode = HorizontalModes::Standby;
+    }
+
+    pub fn activate_horizontal_guidance_wingslevel_mode(&mut self) {
+        self.horizontal_guidance.horizontal_mode = HorizontalModes::WingsLevel;
+    }
+
+    pub fn activate_horizontal_guidance_heading_mode(&mut self) {
+        self.horizontal_guidance.heading_error_integral = 0.0;
+        self.horizontal_guidance.horizontal_mode = HorizontalModes::Heading;
+    }
+
+    pub fn set_standby_velocity(&mut self, standby_velocity: f64) {
+        self.vertical_guidance.velocity_standby = standby_velocity.clamp(0.0, 500.0);
+    }
+
+    pub fn activate_standby_velocity(&mut self) {
+        std::mem::swap(
+            &mut self.vertical_guidance.velocity_setpoint,
+            &mut self.vertical_guidance.velocity_standby,
+        );
+    }
+
+    pub fn set_standby_altitude(&mut self, standby_altitude: f64) {
+        self.vertical_guidance.altitude_standby = standby_altitude.clamp(0.0, 25_000.0);
+    }
+
+    pub fn activate_standby_altitude(&mut self) {
+        std::mem::swap(
+            &mut self.vertical_guidance.altitude_setpoint,
+            &mut self.vertical_guidance.altitude_standby,
+        );
+    }
+
+    pub fn activate_vertical_guidance_standby_mode(&mut self) {
+        self.vertical_guidance.vertical_mode = VerticalModes::Standby;
+    }
+
+    pub fn activate_vertical_guidance_tecs_mode(&mut self) {
+        self.vertical_guidance.energy_error_integral = 0.0;
+        self.vertical_guidance.pitch_error_integral = 0.0;
+        self.vertical_guidance.vertical_mode = VerticalModes::TECS;
+    }
 }
+
 #[derive(Debug, Deserialize, Default, Serialize, Clone)]
 pub struct VerticalGuidance {
     pub vertical_mode: VerticalModes,
