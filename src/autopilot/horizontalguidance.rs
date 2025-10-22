@@ -23,8 +23,8 @@ pub(super) async fn execute_horizontal_guidance(
                 .heading_setpoint
                 - plane_state_struct.heading;
 
-            //only add to integral if heading error is less than 30 degrees
-            if heading_error.abs() < 30.0 {
+            //only add to integral if heading error is less than 15 degrees
+            if heading_error.abs() < 15.0 {
                 app_state
                     .autopilot_state
                     .horizontal_guidance

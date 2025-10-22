@@ -336,12 +336,12 @@ pub(super) struct AutoPilotConstants {
 impl AutoPilotConstants {
     pub fn new() -> Self {
         AutoPilotConstants {
-            heading_error_p: 0.4,
-            heading_error_i: 0.1,
+            heading_error_p: 0.9,
+            heading_error_i: 0.0,
             heading_roll_error_d: 0.2,
             roll_p: 0.01,
-            roll_d: 0.01,
-            roll_i: 0.001,
+            roll_d: 0.001,
+            roll_i: 0.0,
             tecs_cruise_throttle_slope: 0.0000001,
             tecs_cruise_throttle_base: 0.48,
             tecs_energy_p: 0.001,
@@ -352,8 +352,8 @@ impl AutoPilotConstants {
             elevator_d: 0.015,
             elevator_i: 0.0015,
             max_aileron: 0.3,
-            max_roll: 30.0,
-            max_roll_rate: 3.0,
+            max_roll: 25.0,
+            max_roll_rate: 1.0,
             max_elevator: 0.5,
             max_pitch: 15.0,
             max_pitch_rate: 15.0,
@@ -426,8 +426,6 @@ impl AutoPilotState {
     }
 
     pub fn activate_standby_heading(&mut self) {
-        self.horizontal_guidance.heading_setpoint = self.horizontal_guidance.heading_standby;
-
         std::mem::swap(
             &mut self.horizontal_guidance.heading_setpoint,
             &mut self.horizontal_guidance.heading_standby,

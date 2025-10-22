@@ -78,8 +78,8 @@ pub(super) async fn listen_to_send_commands(mut rx: mpsc::Receiver<Command>) -> 
                 c
             );
 
-            // we add a 15 ms delay here, to make sure we dont saturate the xplane UDP interface
-            let _ = tokio::time::sleep(tokio::time::Duration::from_millis(15)).await;
+            // we add a 5 ms delay here, to make sure we dont saturate the xplane UDP interface
+            let _ = tokio::time::sleep(tokio::time::Duration::from_millis(5)).await;
         }
     }
 }

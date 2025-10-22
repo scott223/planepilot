@@ -3,9 +3,10 @@ use tracing::{event, Level};
 
 use crate::types::Command;
 
-pub mod horizontalguidance;
+mod horizontalguidance;
+mod verticalguidance;
 
-const MILLISECONDS_PER_LOOP: u64 = 200;
+const MILLISECONDS_PER_LOOP: u64 = 20;
 
 pub(super) async fn run_autopilot(
     app_state: std::sync::Arc<std::sync::Mutex<crate::types::AppState>>,
@@ -18,13 +19,14 @@ pub(super) async fn run_autopilot(
 
             let mut are_we_flying: bool = false;
             if state.plane_state.contains_key("last_updated_timestamp") {
-                if state
+                let timestamp = state
                     .plane_state
                     .get("last_updated_timestamp")
-                    .context("cannot get last_update_timestamp")?
-                    .as_i64()
-                    .context("cannot convert timestamp to i64")?
-                    > (chrono::Utc::now().timestamp_millis() - 1000)
+                    .context("cannot get last_updated_timestamp")
+                    .unwrap();
+
+                if timestamp.as_f64().context("cannot convert").unwrap()
+                    > ((chrono::Utc::now().timestamp_millis() - 2000) as f64)
                 {
                     are_we_flying = true;
                 }
@@ -55,6 +57,38 @@ pub(super) async fn run_autopilot(
                     .await?;
 
                 */
+
+                match verticalguidance::execute_vertical_guidance(&dt, &mut state).await {
+                    Ok(c) => {
+                        match c {
+                            Some((throttle, elevator)) => {
+                                //TODO error handling
+                                match send_command(&state.command_sender, throttle).await {
+                                    Err(e) => {
+                                        event!(Level::ERROR, "There was an error sending the throttle command for vertical guidance. Error: {:}", e);
+                                    }
+                                    _ => {} // vertical guidance throttle command succesfully sent
+                                }
+
+                                match send_command(&state.command_sender, elevator).await {
+                                    Err(e) => {
+                                        event!(Level::ERROR, "There was an error sending the throttle command for vertical guidance. Error: {:}", e);
+                                    }
+                                    _ => {} // vertical guidance elevator command succesfully sent
+                                }
+                            }
+                            None => {
+                                event!(
+                                    Level::TRACE,
+                                    "Vertical guidance was executed, but no command sent"
+                                );
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        event!(Level::ERROR, "There was an error in the vertical guidance. No elevator command sent. Error: {:}", e);
+                    }
+                }
 
                 match horizontalguidance::execute_horizontal_guidance(&dt, &mut state).await {
                     Ok(c) => {

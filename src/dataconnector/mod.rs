@@ -50,23 +50,10 @@ async fn send_state(app_state: crate::types::AppState) -> anyhow::Result<()> {
     );
 
     line.push_str(" ");
-    line.push_str("autopilot_state ");
-
-    //using JSON to flatten the struct into a string, and then convert
-    // TODO make this more idiomatic :)
-    let s = serde_json::to_string(&app_state.autopilot_state).unwrap();
-    let map: std::collections::HashMap<String, serde_json::Value> =
-        serde_json::from_str(&s).unwrap();
-
-    line.push_str(
-        &map.iter()
-            .filter(|(_k, v)| v.is_number())
-            .map(|(k, v)| format!("{}={}", k, v.as_f64().unwrap()))
-            .join(","),
-    );
-
-    line.push_str(" ");
     line.push_str(&timestamp.to_string());
+
+    //line.push_str(" ");
+    //line.push_str(&timestamp.to_string());
 
     // dbg!(line.clone());
 
@@ -88,7 +75,39 @@ async fn send_state(app_state: crate::types::AppState) -> anyhow::Result<()> {
         }
     }
 
+    let mut line: String = "autopilot_state ".to_owned();
+
+    //using JSON to flatten the struct into a string, and then convert
+    // TODO make this more idiomatic :)
+    let s = serde_json::to_string(&app_state.autopilot_state).unwrap();
+    let map: std::collections::HashMap<String, serde_json::Value> =
+        serde_json::from_str(&s).unwrap();
+
+    line.push_str(
+        &map.iter()
+            .filter(|(_k, v)| v.is_number())
+            .map(|(k, v)| format!("{}={}", k, v.as_f64().unwrap()))
+            .join(","),
+    );
+
+    let client = reqwest::Client::new();
+    let res = client
+    .post("https://eu-central-1-1.aws.cloud2.influxdata.com/api/v2/write/?bucket=Planepilot")
+    .header(reqwest::header::AUTHORIZATION, "Token fNYYFLGey5QUItHsf98hMZqJiB9f_FjzJZlPqih3UfD1QlXRy2AA4MU4p3UnxCBWXx90_FMKvHWoEmMALiQ_ew==")
+    .body(line.to_string())
+    .send()
+    .await;
+
+    match res {
+        Ok(_r) => {
+            //println!("ok {:?}", r.text().await);
+        }
+        Err(e) => {
+            println! {"e: {}", e}
+        }
+    }
+
     // line += &timestamp.timestamp().to_string();
-    // dbg!(line);
+    //dbg!(line);
     Ok(())
 }

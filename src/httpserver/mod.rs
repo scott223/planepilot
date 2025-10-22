@@ -90,6 +90,7 @@ pub struct SendCommand {
 }
 
 // receive a command and send a command message on the channel
+#[axum::debug_handler]
 async fn send_command(
     State(app_state): State<std::sync::Arc<std::sync::Mutex<crate::types::AppState>>>,
     Json(payload): Json<SendCommand>,
@@ -105,17 +106,19 @@ async fn send_command(
         }
     };
 
-    let state = app_state.lock().expect("cannot get lock on state");
+    //this automatically drops the lock after cloning the MSPC sender
+    let tx = {
+        let state = app_state.lock().unwrap();
+        state.command_sender.clone()
+    };
 
-    // TODO actually send the command!
-
-    //match state.command_sender.send(command).await() {
-    //    Ok(_) => return Ok(StatusCode::OK),
-    //    Err(e) => {
-    //        event!(Level::ERROR, "Cannot send command: {:?}", e);
-    return Ok(StatusCode::INTERNAL_SERVER_ERROR);
-    //    }
-    //};
+    match tx.send(command).await {
+        Ok(_) => return Ok(StatusCode::OK),
+        Err(e) => {
+            event!(Level::ERROR, "Cannot send command: {:?}", e);
+            return Ok(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
 }
 
 // AUTOPILOT
